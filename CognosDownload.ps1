@@ -69,7 +69,6 @@ $cWebDir = "ibmcognos"
 If ($eFinance) {
     $camName = "efp"    #efp for eFinance
     $dsnname = $efpdsn
-    $efpuser #eFinance username
 }
 Else {
     $camName = "esp"    #esp for eSchool
@@ -257,7 +256,7 @@ else
 $response.Close()
 
 # check file for proper format if csv
-if ($extension = "csv")
+if ($extension -eq "csv")
 {
     $FileExists = Test-Path $fullfilepath
     If ($FileExists -eq $False) {
