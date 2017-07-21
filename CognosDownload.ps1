@@ -105,7 +105,7 @@ $filetimestamp = Get-Date
 
 if ($uiAction -match "run") #run the report live for the data
 {
-    $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=CAMID(%22$camName%3au%3a$userid%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2f$reporttype%5b%40name%3d%27$report%27%5d&ui.name=$report&ui.format=CSV"
+    $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2f$reporttype%5b%40name%3d%27$report%27%5d&ui.name=$report&run.outputFormat=CSV&run.prompt=false"
     #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=CAMID(%22$camName%3au%3a$userid%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d&ui.name=$report&ui.format=CSV"
     #       -----------------/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=********&CAMUsername=*********&CAMPassword=*********&b_action=cognosViewer&ui.action=*********&ui.object=CAMID(%22********%3au%3a*******%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27*******%27%5d&ui.name=*******&ui.format=CSV
 }
