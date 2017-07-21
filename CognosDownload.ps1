@@ -1,29 +1,52 @@
-# Setup a report with specific name (MyReportName) to run scheduled to save with which format you want then schedule this script to download it.
-# Run from command line or batch script: powershell.exe -executionpolicy bypass -file C:\ImportFiles\Scripts\CognosDownload.ps1 MyReportName
-# Change the below variables
-$username = "0000name" #APSCN/SSO username
-$passwordfile = "C:\scripts\apscnpw.txt"  #Location to export the password file
-#efpuser is used for eFinance
-$efpuser = "yourefinanceusername"
+Param(
+[parameter(Position=0,Mandatory=$true,HelpMessage="Give the name of the report you want to download.")][string]$report,
+[parameter(Position=1,Mandatory=$false,HelpMessage="Give a specific folder to download the report into.")]
+[string]$savepath="C:\ImportFiles\", #--- VARIABLE --- change to a path you want to save files
+[parameter(Position=2,Mandatory=$false,HelpMessage="Extension to save onto the report name.")][ValidateSet("csv","xlsx")]
+[string]$extension="csv", #--- VARIABLE --- file extension to save data in csv or xlsx
+[parameter(Mandatory=$false,HelpMessage="eSchool SSO username to use.")]
+[string]$username="0000name", #--- VARIABLE --- SSO username
+[parameter(Mandatory=$false,HelpMessage="eSchool DSN location.")]
+[string]$espdsn="schoolsms", #--- VARIABLE --- eSchool DSN for your district
+[parameter(Mandatory=$false,HelpMessage="eFinance username to use.")]
+[string]$efpuser="yourefinanceusername", #--- VARIABLE --- eFinance username
+[parameter(Mandatory=$false,HelpMessage="eFinance DSN location.")]
+[string]$efpdsn="schoolfms", #--- VARIABLE --- eFinance DSN for your district
+[parameter(Mandatory=$false,HelpMessage="Use switch for Report Studio created report. Otherwise it will be a Query Studio report")][switch]$ReportStudio,
+[parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")][switch]$eFinance,
+[parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport
+)
+# The above parameters can be called directly from powershell switches
+# In Cognos, do the following:
+# 1. Setup a report with specific name (best without spaces like MyReportName) to run scheduled to save with which format you want then schedule this script to download it.
+# 2. You will need to determine the DSN (database name) for your district
+#    To obtain this you need to log in to the eSchool Cognos site using and view the source code of the overall frameset.
+#    The dsn is displayed in the second <frame> tag like so where the ****** is: src="https://adecognos.arkansas.gov/ibmcognos/cgi-bin/cognos.cgi?dsn=******
+# On computer to download data:
+# 1. After adjusting relevant variables for your district and user account
+# 2. Create folder to store password data for script (default of C:\scripts)
+# 3. Run from command line or batch script: powershell.exe -executionpolicy bypass -file C:\ImportFiles\Scripts\CognosDownload.ps1 MyReportName
+#    Scripts can also use command switches from powershell: CognosDownload.ps1 -report MyReportName -savepath C:\Scripts -extension csv -username 0000username -espdsn schoolsms
+# In case report was not built with Query Studio, use -ReportStudio
+# For eFinance:
+# Use "-username 0000name -efpuser yourefinanceusername -efpdsn schoolfms -eFinance" to run report from eFinance (SSO username is required along with eFinance username)
+
+# Location to export the secured password file. When the password expires, just delete the specific file and run the script to re-create
+$passwordfile = "C:\scripts\apscnpw.txt"
 $userdomain = "APSCN"
-# dsnname is the database name for your district
-# To obtain this you need to log in to the eSchool Cognos site using and view the source code of the overall frameset.
-# The dsn is displayed in the second <frame> tag like so where the ****** is: src="https://adecognos.arkansas.gov/ibmcognos/cgi-bin/cognos.cgi?dsn=******
-$dsnname = "schoomsms"
-$camName = "esp"    #esp for eSchool, efp for eFinance
-$reporttype = "query" #'query' for Query Studio or 'report' for Report Studio
-# The file path where you want the file placed
-$savepath = $args[1]
-# extension for report format: csv, xlsx
-$extension = "csv"
 #******************* end of variables to change ********************
 #exit codes list
 #1 = Specified path does not exist from parameter
 #2 = Invalid uiAction option specified
 #3 = sURL not found. The script tried to click the report link, but did not get the expected result of already saved report
+#4 = Got HTTP reponse of something other than 200 (OK), likely received a 401 (Unauthorized)
 #9 = General unspecified trap for error
 #10 = CAM_PASSPORT_ERROR detected, check your password
 #11 = AAA-AUT-0011 detected, namespace problem in report
+#12 = Failed to verify CSV format, reverted file if available
+#13 = CSV file didn't download to expected path
+#20 = Unable to query for data source, check the DSN
+#29 = Error during login found in returned data, probably with DSN or path requested
 
 # Revisions:
 # 2014-07-23: Brian Johnson: Updated URL string to include dsn parameters necessary for eSchool and re-enabled CredentialCache setting to login
@@ -32,17 +55,26 @@ $extension = "csv"
 # 2017-02-07: Added CSV verify and revert
 # 2017-02-27: Added variable for reporttype
 # 2017-07-12: VBSDbjohnson: Merged past changes with CWeber42 version
+# 2017-07-13: VBSDbjohnson: Changed to use Powershell parameters instead of args. Script should also be able to run without modifying file
 
 
 # Cognos ui action to perform 'run' or 'view'
 # run not fully implemented
-$uiAction = "view"
+If ($RunReport) {$uiAction = "run"} Else {$uiAction = "view"}
 
 # server location for Cognos
 $baseURL = "https://adecognos.arkansas.gov"
 $cWebDir = "ibmcognos"
 
-$report = $args[0]
+If ($eFinance) {
+    $camName = "efp"    #efp for eFinance
+    $dsnname = $efpdsn
+}
+Else {
+    $camName = "esp"    #esp for eSchool
+    $dsnname = $espdsn
+}
+If ($ReportStudio) {$reporttype = "report"} Else {$reporttype = "query"}    #report for Report Studio, query for Query Studio
 
 #Script to create a password file for Cognos download Directory
 #This script MUST BE RAN LOCALLY to work properly! Run it on the same machine doing the cognos downloads, this does not work remotely!
@@ -60,7 +92,7 @@ $fullfilepath = "$savepath\$report.$extension"
 
 If (!(Test-Path ($savepath))) {
     write-host("Specified save folder does not exist! [$fullfilepath]") -ForeGroundColor Yellow
-    exit 1
+    exit 1 #specified save folder does not exist
 }
 
 #get current datetime for if-modified-since header for file
@@ -81,19 +113,22 @@ elseif ($uiAction -match "view") #view a saved version of the report data
 {
     $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2f$reporttype%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
     #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
+
+    #eFinance version when enabled
+    If ($eFinance) {
+        $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?spi_db_name=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$efpuser%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report"
+    }
 }
 else
 {
     throw "Invalid uiAction option: use only 'view' or 'run'"
-    exit 2
+    exit 2 #option not implemented
 }
-
-$fullfilepath = "$savepath$report.$extension"
 
 trap
 {
     write-output $_
-    exit 9
+    exit 9 #general trap for errors
 }
 
 if(!(Split-Path -parent $savepath) -or !(Test-Path -pathType Container (Split-Path -parent $savepath))) {
@@ -127,6 +162,7 @@ if ($response.StatusCode -ne 200)
 {
     $result = "Error : " + $response.StatusCode + " : " + $response.StatusDescription
     $result
+    exit 4 #was not a HTTP response of 200 (OK)
 }
 else
 {
@@ -141,18 +177,30 @@ else
         if ($HTMLDataString -match [regex]"CAM_PASSPORT_ERROR") #this error is in the output of HTMLDataString
         {
             write-output "Found 'CAM_PASSPORT_ERROR': Please check the password used for script"
-            exit 10
+            exit 10 #login error
         }
         elseif ($HTMLDataString -match [regex]"AAA-AUT-0011") #this error is in the output of HTMLDataString for Invalid Namespace
         {
-            write-host($HTMLDataString) -ForeGroundColor White
+            write-host($HTMLDataString) -ForeGroundColor Gray
             write-output "Found 'AAA-AUT-0011': Invalid Namespace error"
-            exit 11
+            exit 11 #Invalid namespace error
         }
-        write-host($HTMLDataString) -ForeGroundColor White
+        elseif ($HTMLDataString -match [regex]"Unable to query for data source")
+        {
+            write-host($HTMLDataString) -ForeGroundColor Gray
+            write-output "Found 'Unable to query for data source' in returned HTMLDataString: Check your DSN"
+            exit 20 #Unable to query for data source
+        }
+        elseif ($HTMLDataString -match [regex]"Error during login")
+        {
+            write-host($HTMLDataString) -ForeGroundColor Gray
+            write-output "Found 'Error during login' in returned HTMLDataString: Check your DSN paths"
+            exit 29 #Error during login found in returned data
+        }
+        write-host($HTMLDataString) -ForeGroundColor Gray
         throw "'var sURL' not found"
 
-        exit 3
+        exit 3 #'var sURL' not found
     }
     $urlMatch = $regex.Matches($HTMLDataString)
     write-host("Found URL in data to download report.") -ForeGroundColor Yellow
@@ -208,12 +256,12 @@ else
 $response.Close()
 
 # check file for proper format if csv
-if ($extension = "csv")
+if ($extension -eq "csv")
 {
     $FileExists = Test-Path $fullfilepath
     If ($FileExists -eq $False) {
         Write-Host("Does not exist:" + $fullfilepath)
-        exit 13
+        exit 13 #CSV file didn't download to expected path
     }
     #line counts to keep track of lines
     $lcount = 0
@@ -235,6 +283,7 @@ if ($extension = "csv")
         if($lcount -eq 5)
         {
             write-host("Passed CSV $lcount lines...") -ForeGroundColor Yellow
+            $reader.Close()
             break
         }
         if($badlcount -gt 0)
@@ -246,7 +295,9 @@ if ($extension = "csv")
                 Rename-Item -Path $fullfilepath -newname ($fullfilepath)
             }
             write-host("Failed CSV verify. Reversing old $report...") -ForeGroundColor Red
-            exit 12
+            $reader.Close()
+            exit 12 #reverted file format
         }
+        $reader.Close()
     }
 }
