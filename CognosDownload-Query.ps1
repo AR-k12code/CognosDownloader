@@ -5,13 +5,13 @@
 # Read-Host "Enter Password" -AsSecureString |  ConvertFrom-SecureString | Out-File "C:\scripts\apscnpw.txt" 
 # Run line 5 each time you update your School Password to re-export the updated file
 
-$username = "0402cweber"
+$username = "yourssonamehere"
 $password = Get-Content "C:\scripts\apscnpw.txt" | ConvertTo-SecureString #Should Match the export location from line 5
 $userdomain = "APSCN"
 # dsnname is the database name for your district
 # To obtain this you need to log in to the eSchool Cognos site using and view the source code of the overall frameset.
 # The dsn is displayed in the second <frame> tag like so where the ****** is: src="https://adecognos.arkansas.gov/ibmcognos/cgi-bin/cognosisapi.dll?dsn=******
-$dsnname = "decatursms"
+$dsnname = "yourschooldsnhere"
 # The file path where you want the file placed
 $savepath = $args[1]
 # extension for report format: csv, xlsx
