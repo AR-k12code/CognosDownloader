@@ -12,10 +12,14 @@ Param(
 [string]$efpuser="yourefinanceusername", #--- VARIABLE --- eFinance username
 [parameter(Mandatory=$false,HelpMessage="eFinance DSN location.")]
 [string]$efpdsn="schoolfms", #--- VARIABLE --- eFinance DSN for your district
+[parameter(Mandatory=$false,HelpMessage="Cognos Folder Structure.")]
+[string]$cognosfolder="My Folders", #--- VARIABLE --- Cognos Folder "Folder 1/Sub Folder 2/Sub Folder 3" NO TRAILING SLASH
 [parameter(Mandatory=$false,HelpMessage="Use switch for Report Studio created report. Otherwise it will be a Query Studio report")][switch]$ReportStudio,
 [parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")][switch]$eFinance,
-[parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport
+[parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport,
+[parameter(Mandatory=$false,HelpMessage="Send an email on failure.")][switch]$SendMail
 )
+
 # The above parameters can be called directly from powershell switches
 # In Cognos, do the following:
 # 1. Setup a report with specific name (best without spaces like MyReportName) to run scheduled to save with which format you want then schedule this script to download it.
@@ -47,6 +51,7 @@ $userdomain = "APSCN"
 #13 = CSV file didn't download to expected path
 #20 = Unable to query for data source, check the DSN
 #29 = Error during login found in returned data, probably with DSN or path requested
+#30 = Failed to send email to smtp server. (possible no internet.)
 
 # Revisions:
 # 2014-07-23: Brian Johnson: Updated URL string to include dsn parameters necessary for eSchool and re-enabled CredentialCache setting to login
@@ -56,7 +61,39 @@ $userdomain = "APSCN"
 # 2017-02-27: Added variable for reporttype
 # 2017-07-12: VBSDbjohnson: Merged past changes with CWeber42 version
 # 2017-07-13: VBSDbjohnson: Changed to use Powershell parameters instead of args. Script should also be able to run without modifying file
+# 2018-04-24: Craig Millsap: Added recursive nested folders and email notification.
 
+#send mail on failure.
+$smtpauth = 0 #If you have to authenticate then change to 1 and put password in below.
+$smtpserver = "smtp-relay.gmail.com"
+$smtpport = "587"
+$mailfrom = "noreply@yourdomain.com"
+$mailfrompassword = '' #Only required if you have to authenticate.
+$mailto = "technology@yourdomain.com"
+$mailsubject = "[CognosDownloader]"
+
+function Send-Email([string]$failurereason) {
+    if ($SendMail) {
+        $msg = New-Object Net.Mail.MailMessage
+        $smtp = New-Object Net.Mail.SmtpClient($smtpserver, $smtpport)
+        $smtp.EnableSSL = $True
+        #If authentication is required.
+        if ($smtpauth -eq 1) { $smtp.Credentials = New-Object System.Net.NetworkCredential($mailfrom,$mailfrompassword) }
+        $msg.From = $mailfrom
+        $msg.To.Add($mailto)
+        #Include date so emails don't group in a thread.
+        $msg.subject =  $mailsubject + $failurereason + "[$(Get-Date -format MM/dd/y)]" + '[' + $report + ']'
+        $msg.Body = "The report " + $report  + " failed to download properly.`r`n"
+        $msg.Body += $url
+        
+        try {
+            $smtp.send($msg)
+        } catch {
+            write-host "Failed to send email"
+            exit 30
+        }
+    }
+}
 
 # Cognos ui action to perform 'run' or 'view'
 # run not fully implemented
@@ -92,6 +129,7 @@ $fullfilepath = "$savepath\$report.$extension"
 
 If (!(Test-Path ($savepath))) {
     write-host("Specified save folder does not exist! [$fullfilepath]") -ForeGroundColor Yellow
+    Send-Email("[Failure][Save Path Missing]")
     exit 1 #specified save folder does not exist
 }
 
@@ -103,31 +141,54 @@ $filetimestamp = Get-Date
 [System.Net.HttpWebResponse]$response
 [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
 
+#Include folders. In the future create an array from split at /
+if ($cognosfolder -eq "My Folders") {
+    $cognosfolder = "folder[@name='My Folders']/"
+    $cognosfolder = $([System.Web.HttpUtility]::UrlEncode($cognosfolder)).replace('+','%20')
+} else {
+    $folders = $cognosfolder.split('/')
+    $cognosfolder = ''
+    for ($counter=0; $counter -lt $folders.Length; $counter++) {
+        $cognosfolder += "folder[@name='" + [string]$folders[$counter] + "']/"
+    }
+    $cognosfolder = "folder[@name='My Folders']/" + $cognosfolder
+    $cognosfolder = $([System.Web.HttpUtility]::UrlEncode($cognosfolder)).replace('+','%20')
+}
+
+write-host $cognosfolder
+write-host $([System.Web.HttpUtility]::UrlDecode($cognosfolder))
+
 if ($uiAction -match "run") #run the report live for the data
 {
-    $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2f$reporttype%5b%40name%3d%27$report%27%5d&ui.name=$report&run.outputFormat=CSV&run.prompt=false"
-    #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=CAMID(%22$camName%3au%3a$userid%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d&ui.name=$report&ui.format=CSV"
-    #       -----------------/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=********&CAMUsername=*********&CAMPassword=*********&b_action=cognosViewer&ui.action=*********&ui.object=CAMID(%22********%3au%3a*******%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27*******%27%5d&ui.name=*******&ui.format=CSV
+    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?dsn=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=CAMID(%22$($camName)%3aa%3a$($username)%22)%2f$($cognosfolder)$($reporttype)%5b%40name%3d%27$($report)%27%5d&ui.name=$($report)&run.outputFormat=CSV&run.prompt=false"
+    #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=CAMID(%22$camName%3au%3a$userid%22)%2ffolder%5b%40name%3d%27$cognosfolder%27%5d%2fquery%5b%40name%3d%27$report%27%5d&ui.name=$report&ui.format=CSV"
+    #       -----------------/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=********&CAMUsername=*********&CAMPassword=*********&b_action=cognosViewer&ui.action=*********&ui.object=CAMID(%22********%3au%3a*******%22)%2ffolder%5b%40name%3d%27$cognosfolder%27%5d%2fquery%5b%40name%3d%27*******%27%5d&ui.name=*******&ui.format=CSV
 }
 elseif ($uiAction -match "view") #view a saved version of the report data
 {
-    $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2f$reporttype%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
-    #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
+    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?dsn=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=defaultOutput(CAMID(%22$($camName)%3aa%3a$($username)%22)%2f$($cognosfolder)$($reporttype)%5b%40name%3d%27$($report)%27%5d)&ui.name=$($report)&ui.format=CSV"
+    #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27$cognosfolder%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
 
     #eFinance version when enabled
     If ($eFinance) {
-        $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?spi_db_name=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$efpuser%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report"
+        $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?spi_db_name=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=defaultOutput(CAMID(%22$($camName)%3aa%3a$($efpuser)%22)%2f$($cognosfolder)query%5b%40name%3d%27$($report)%27%5d)&ui.name=$($report)"
     }
 }
 else
 {
     throw "Invalid uiAction option: use only 'view' or 'run'"
+    Send-Email("[Failure][Invalid UI Action]")
     exit 2 #option not implemented
 }
 
+write-host $url
+write-host $([System.Web.HttpUtility]::UrlDecode($url))
+#exit
+
 trap
 {
-    write-output $_
+    write-host $_
+    Send-Email("[Failure][Generic]")
     exit 9 #general trap for errors
 }
 
@@ -162,6 +223,7 @@ if ($response.StatusCode -ne 200)
 {
     $result = "Error : " + $response.StatusCode + " : " + $response.StatusDescription
     $result
+    Send-Email("[Failure][" + [string]$response.StatusCode + "]")
     exit 4 #was not a HTTP response of 200 (OK)
 }
 else
@@ -176,30 +238,34 @@ else
     {
         if ($HTMLDataString -match [regex]"CAM_PASSPORT_ERROR") #this error is in the output of HTMLDataString
         {
-            write-output "Found 'CAM_PASSPORT_ERROR': Please check the password used for script"
+            write-host "Found 'CAM_PASSPORT_ERROR': Please check the password used for script"
+            Send-Email("[Failure][Password]")
             exit 10 #login error
         }
         elseif ($HTMLDataString -match [regex]"AAA-AUT-0011") #this error is in the output of HTMLDataString for Invalid Namespace
         {
             write-host($HTMLDataString) -ForeGroundColor Gray
-            write-output "Found 'AAA-AUT-0011': Invalid Namespace error"
+            write-host "Found 'AAA-AUT-0011': Invalid Namespace error"
+            Send-Email("[Failure][Namespace]")
             exit 11 #Invalid namespace error
         }
         elseif ($HTMLDataString -match [regex]"Unable to query for data source")
         {
             write-host($HTMLDataString) -ForeGroundColor Gray
-            write-output "Found 'Unable to query for data source' in returned HTMLDataString: Check your DSN"
+            write-host "Found 'Unable to query for data source' in returned HTMLDataString: Check your DSN"
+            Send-Email("[Failure][Datasource]")
             exit 20 #Unable to query for data source
         }
         elseif ($HTMLDataString -match [regex]"Error during login")
         {
             write-host($HTMLDataString) -ForeGroundColor Gray
-            write-output "Found 'Error during login' in returned HTMLDataString: Check your DSN paths"
+            write-host "Found 'Error during login' in returned HTMLDataString: Check your DSN paths"
+            Send-Email("[Failure][DNSLogin]")
             exit 29 #Error during login found in returned data
         }
         write-host($HTMLDataString) -ForeGroundColor Gray
         throw "'var sURL' not found"
-
+        Send-Email("[Failure][sURL]")
         exit 3 #'var sURL' not found
     }
     $urlMatch = $regex.Matches($HTMLDataString)
@@ -209,7 +275,7 @@ else
     if ($uiAction -match "run") #run the report live for the data
     {
         # temp to show data from the HTMLDataString for the sURL
-        write-host($HTMLDataString) -ForeGroundColor White
+        #write-host($HTMLDataString) -ForeGroundColor White
     }
 
     # Append beginning part of url
@@ -246,7 +312,7 @@ else
         $fs.Write($read, 0, $count)
         $count = $st.Read($read, 0, $read.Length)
         $tcount += $count
-        Write-Host $tcount -NoNewline "`r"
+        write-host $tcount -NoNewline "`r"
     }
     $fs.Close()
     $st.Close()
@@ -260,7 +326,8 @@ if ($extension -eq "csv")
 {
     $FileExists = Test-Path $fullfilepath
     If ($FileExists -eq $False) {
-        Write-Host("Does not exist:" + $fullfilepath)
+        write-host("Does not exist:" + $fullfilepath)
+        Send-Email("[Failure][Output]")
         exit 13 #CSV file didn't download to expected path
     }
     #line counts to keep track of lines
@@ -296,6 +363,7 @@ if ($extension -eq "csv")
             }
             write-host("Failed CSV verify. Reversing old $report...") -ForeGroundColor Red
             $reader.Close()
+            Send-Email("[Failure][Verify]")
             exit 12 #reverted file format
         }
         $reader.Close()
