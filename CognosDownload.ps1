@@ -243,7 +243,13 @@ else
     Write-Host("Downloaded HTML to retrieve report url.") -ForeGroundColor Yellow
     $regex = [regex]"var sURL = '(.*?)'"
 
-    if ([xml]$HTMLDataString) {
+    try {
+        if ([xml]$HTMLDataString) { $xmlresponse = $True }
+    } catch {
+        $xmlresponse = $False
+    }
+
+    if ($xmlresponse) {
         $reportjob = $($HTMLDataString).Replace('<xml><state>','').Replace('</state></xml>','').Replace('&quot;','''') | ConvertFrom-Json
         
         if ($reportjob.m_sStatus -eq "working") {
