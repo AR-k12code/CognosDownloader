@@ -65,8 +65,11 @@ $userdomain = "APSCN"
 # 2017-02-27: Added variable for reporttype
 # 2017-07-12: VBSDbjohnson: Merged past changes with CWeber42 version
 # 2017-07-13: VBSDbjohnson: Changed to use Powershell parameters instead of args. Script should also be able to run without modifying file
+# 2018-04-26: scottorgan: Nested folder support Usage examples: CognosDownload.ps1 Clever\Entollments ; CognosDownload.ps1 "Other Reports\MAP Roster"
+# 2018-04-26: BPSDJreed: Email notification for expired password
 
 # Check to see if the Report is in a nested folder.  
+
 If ($report.Contains( "\")) {
     $levels = ($report.ToCharArray() | Where-Object {$_ -eq '\'} | Measure-Object).Count
     if ($levels -eq 1) {
