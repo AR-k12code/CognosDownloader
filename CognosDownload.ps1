@@ -15,10 +15,11 @@ Param(
 [parameter(Mandatory=$false,HelpMessage="Use switch for Report Studio created report. Otherwise it will be a Query Studio report")][switch]$ReportStudio,
 [parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")][switch]$eFinance,
 [parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport
+[parameter(Mandatory=$false,HelpMessage="The email address to send the notification to.")]$Email
 )
 #Email Settings for password reminder
 $From = 'Your.Email@Here'
-$To = 'Their.Email@Here'
+$To = $Email
 $Subject = 'APSCN Password needs to be updated'
 $Body = 'Your APSCN password has changed since the last time this script has run. Please update the password on file so we can download $report successfully. 
 
@@ -185,7 +186,7 @@ else
     {
         if ($HTMLDataString -match [regex]"CAM_PASSPORT_ERROR") #this error is in the output of HTMLDataString
         {
-            Send-MailMessage -From $From -to $To -Subject $Subject -Body $Body -SmtpServer $SMTPServer -port $SMTPPort
+            if ($Email){Send-MailMessage -From $From -to $To -Subject $Subject -Body $Body -SmtpServer $SMTPServer -port $SMTPPort}
             write-output "Found 'CAM_PASSPORT_ERROR': Please check the password used for script"
             exit 10 #login error
         }
