@@ -27,8 +27,10 @@ Param(
 [parameter(Mandatory=$false,HelpMessage="SMTP Server Port")][string]$smtpport="587",
 [parameter(Mandatory=$false,HelpMessage="SMTP eMail From")][string]$mailfrom="noreply@yourdomain.com",
 [parameter(Mandatory=$false,HelpMessage="SMTP eMail Password")][string]$mailfrompassword='',
-[parameter(Mandatory=$false,HelpMessage="Send eMail to")][string]$mailto="technology@yourdomain.com"
+[parameter(Mandatory=$false,HelpMessage="Send eMail to")][string]$mailto="technology@yourdomain.com",
+[parameter(Mandatory=$false,HelpMessage="Show progress of report downloading.")][switch]$showprogress #Show counter as file is downloaded.
 )
+Add-Type -AssemblyName System.Web
 
 # The above parameters can be called directly from powershell switches
 # In Cognos, do the following:
@@ -39,8 +41,8 @@ Param(
 # On computer to download data:
 # 1. After adjusting relevant variables for your district and user account
 # 2. Create folder to store password data for script (default of C:\scripts)
-# 3. Run from command line or batch script: powershell.exe -executionpolicy bypass -file C:\ImportFiles\Scripts\CognosDownload.ps1 MyReportName
-#    Scripts can also use command switches from powershell: CognosDownload.ps1 -report MyReportName -savepath C:\Scripts -extension csv -username 0000username -espdsn schoolsms
+# 3. Run from command line or batch script: powershell.exe -executionpolicy bypass -file C:\ImportFiles\Scripts\CognosArgsDownload.ps1 MyReportName
+#    Scripts can also use command switches from powershell: CognosArgsDownload.ps1 -report MyReportName -savepath C:\Scripts -extension csv -username 0000username -espdsn schoolsms
 # In case report was not built with Query Studio, use -ReportStudio
 # For eFinance:
 # Use "-username 0000name -efpuser yourefinanceusername -efpdsn schoolfms -eFinance" to run report from eFinance (SSO username is required along with eFinance username)
@@ -234,9 +236,7 @@ if ($response.StatusCode -ne 200)
     $result
     Send-Email("[Failure][" + [string]$response.StatusCode + "]")
     exit 4 #was not a HTTP response of 200 (OK)
-}
-else
-{
+} else {
     $sr = New-Object System.IO.StreamReader($response.GetResponseStream())
     $HTMLDataString = $sr.ReadToEnd()
     
@@ -374,7 +374,7 @@ else
         $fs.Write($read, 0, $count)
         $count = $st.Read($read, 0, $read.Length)
         $tcount += $count
-        Write-Host $tcount -NoNewline "`r"
+        if ($showprogress) { Write-Host $tcount -NoNewline "`r" }
     }
     $fs.Close()
     $st.Close()
