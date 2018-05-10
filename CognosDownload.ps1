@@ -389,18 +389,19 @@ if ($response.StatusCode -ne 200)
     $fs = New-Object System.IO.FileStream $fullfilepath, $mode
     $read = New-Object byte[] 256
     [int] $count = $st.Read($read, 0, $read.Length)
-    [int] $tcount = 0
+    [int] $tcount = $count #set to initial count
+    [int] $reslength = $fileResponse.ContentLength
     while ($count -gt 0)
     {
         $fs.Write($read, 0, $count)
         $count = $st.Read($read, 0, $read.Length)
         $tcount += $count
-        if ($showprogress) { Write-Host $tcount -NoNewline "`r" }
+        if ($showprogress) { Write-Host "$tcount of $reslength" -NoNewline "`r" }
     }
     $fs.Close()
     $st.Close()
     $fileResponse.Close()
-    Write-Host("File [$fullfilepath] downloaded [$tcount] bytes") -ForeGroundColor Yellow
+    Write-Host("File [$fullfilepath] downloaded [$tcount] of [$reslength] bytes") -ForeGroundColor Yellow
 }
 $response.Close()
 
