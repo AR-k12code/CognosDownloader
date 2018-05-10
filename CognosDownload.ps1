@@ -88,7 +88,8 @@ function Send-Email([string]$failurereason) {
     if ($SendMail) {
         $msg = New-Object Net.Mail.MailMessage
         $smtp = New-Object Net.Mail.SmtpClient($smtpserver, $smtpport)
-        $smtp.EnableSSL = $True
+        #port 25 is likely non-ssl (for internal restricted relays), maybe change to switch option?
+        if ($smtpport -eq 25) {$smtp.EnableSSL = $False} else { $smtp.EnableSSL = $True }
         #If authentication is required.
         if ($smtpauth) { $smtp.Credentials = New-Object System.Net.NetworkCredential($mailfrom,$mailfrompassword) }
         $msg.From = $mailfrom
