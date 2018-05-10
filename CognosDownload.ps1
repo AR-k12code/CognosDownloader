@@ -101,7 +101,7 @@ function Send-Email([string]$failurereason) {
         try {
             $smtp.send($msg)
         } catch {
-            Write-Host "Failed to send email"
+            Write-Host("Failed to send email: $_") -ForeGroundColor Red
             exit 30
         }
     }
