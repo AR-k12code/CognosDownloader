@@ -68,20 +68,6 @@ $userdomain = "APSCN"
 # 2018-04-26: scottorgan: Nested folder support Usage examples: CognosDownload.ps1 Clever\Entollments ; CognosDownload.ps1 "Other Reports\MAP Roster"
 # 2018-04-26: BPSDJreed: Email notification for expired password
 
-# Check to see if the Report is in a nested folder.  
-
-If ($report.Contains( "\")) {
-    $levels = ($report.ToCharArray() | Where-Object {$_ -eq '\'} | Measure-Object).Count
-    if ($levels -eq 1) {
-        $isNested = $true
-        $nestedFolder = Split-Path -Path $report -Parent
-        $report = Split-Path -Path $report -Leaf
-    } Else {
-        Write-Host "Two or more nested folders not supported"
-        Exit
-    }
-}
-
 # Cognos ui action to perform 'run' or 'view'
 # run not fully implemented
 If ($RunReport) {$uiAction = "run"} Else {$uiAction = "view"}
@@ -138,11 +124,6 @@ elseif ($uiAction -match "view") #view a saved version of the report data
     $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2f$reporttype%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
     #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
 
-    #update url if report is from a nested folder
-    If ($isNested) {
-        $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2ffolder%5b%40name%3d%27$nestedFolder%27%5d%2f$reporttype%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
-    }
-    
     #eFinance version when enabled
     If ($eFinance) {
         $url = "$baseURL/$cWebDir/cgi-bin/cognos.cgi?spi_db_name=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$efpuser%22)%2ffolder%5b%40name%3d%27My%20Folders%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report"
