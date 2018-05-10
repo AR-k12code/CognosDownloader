@@ -16,15 +16,6 @@ Param(
 [parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")][switch]$eFinance,
 [parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport
 )
-#Email Settings for password reminder
-$From = 'Your.Email@Here'
-$To = 'Their.Email@Here'
-$Subject = 'APSCN Password needs to be updated'
-$Body = 'Your APSCN password has changed since the last time this script has run. Please update the password on file so we can download $report successfully. 
-
-Thanks'
-$SMTPServer = 'aspmx.l.google.com'
-$SMTPPort = '25'
 # The above parameters can be called directly from powershell switches
 # In Cognos, do the following:
 # 1. Setup a report with specific name (best without spaces like MyReportName) to run scheduled to save with which format you want then schedule this script to download it.
@@ -186,7 +177,6 @@ else
     {
         if ($HTMLDataString -match [regex]"CAM_PASSPORT_ERROR") #this error is in the output of HTMLDataString
         {
-            Send-MailMessage -From $From -to $To -Subject $Subject -Body $Body -SmtpServer $SMTPServer -port $SMTPPort
             write-output "Found 'CAM_PASSPORT_ERROR': Please check the password used for script"
             exit 10 #login error
         }
