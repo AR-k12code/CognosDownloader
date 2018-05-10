@@ -29,8 +29,8 @@ Param(
 [string]$smtpport="587", #--- VARIABLE --- change for your email server
 [parameter(Mandatory=$false,HelpMessage="SMTP eMail From")]
 [string]$mailfrom="noreply@yourdomain.com", #--- VARIABLE --- change for your email from address
-[parameter(Mandatory=$false,HelpMessage="SMTP eMail Password")]
-[string]$mailfrompassword='', #--- VARIABLE --- change for your email server password
+[parameter(Mandatory=$false,HelpMessage="File for SMTP eMail Password")]
+[string]$smtppasswordfile="C:\Scripts\emailpw.txt", #--- VARIABLE --- change to a file path for email server password
 [parameter(Mandatory=$false,HelpMessage="Send eMail to")]
 [string]$mailto="technology@yourdomain.com", #--- VARIABLE --- change for your email to address
 [parameter(Mandatory=$false,HelpMessage="Show progress of report downloading.")][switch]$showprogress #Show counter as file is downloaded.
@@ -135,6 +135,17 @@ Else {
     Write-Host("Password file does not exist! [$passwordfile]. Please enter a password to be saved on this computer for scripts") -ForeGroundColor Yellow
     Read-Host "Enter Password" -AsSecureString |  ConvertFrom-SecureString | Out-File $passwordfile
     $password = Get-Content $passwordfile | ConvertTo-SecureString
+}
+
+If ($smtpauth) {
+    If ((Test-Path ($smtppasswordfile))) {
+        $smtppassword = Get-Content $smtppasswordfile | ConvertTo-SecureString
+    }
+    Else {
+        Write-Host("SMTP Password file does not exist! [$smtppasswordfile]. Please enter a password to be saved on this computer for emails") -ForeGroundColor Yellow
+        Read-Host "Enter Password" -AsSecureString |  ConvertFrom-SecureString | Out-File $smtppasswordfile
+        $mailfrompassword = Get-Content $smtppasswordfile | ConvertTo-SecureString
+    }
 }
 
 $fullfilepath = "$savepath\$report.$extension"
