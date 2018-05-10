@@ -23,11 +23,16 @@ Param(
 [parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport,
 [parameter(Mandatory=$false,HelpMessage="Send an email on failure.")][switch]$SendMail,
 [parameter(Mandatory=$false,HelpMessage="SMTP Auth Required.")][switch]$smtpauth,
-[parameter(Mandatory=$false,HelpMessage="SMTP Server")][string]$smtpserver="smtp-relay.gmail.com",
-[parameter(Mandatory=$false,HelpMessage="SMTP Server Port")][string]$smtpport="587",
-[parameter(Mandatory=$false,HelpMessage="SMTP eMail From")][string]$mailfrom="noreply@yourdomain.com",
-[parameter(Mandatory=$false,HelpMessage="SMTP eMail Password")][string]$mailfrompassword='',
-[parameter(Mandatory=$false,HelpMessage="Send eMail to")][string]$mailto="technology@yourdomain.com",
+[parameter(Mandatory=$false,HelpMessage="SMTP Server")]
+[string]$smtpserver="smtp-relay.gmail.com", #--- VARIABLE --- change for your email server
+[parameter(Mandatory=$false,HelpMessage="SMTP Server Port")]
+[string]$smtpport="587", #--- VARIABLE --- change for your email server
+[parameter(Mandatory=$false,HelpMessage="SMTP eMail From")]
+[string]$mailfrom="noreply@yourdomain.com", #--- VARIABLE --- change for your email from address
+[parameter(Mandatory=$false,HelpMessage="SMTP eMail Password")]
+[string]$mailfrompassword='', #--- VARIABLE --- change for your email server password
+[parameter(Mandatory=$false,HelpMessage="Send eMail to")]
+[string]$mailto="technology@yourdomain.com", #--- VARIABLE --- change for your email to address
 [parameter(Mandatory=$false,HelpMessage="Show progress of report downloading.")][switch]$showprogress #Show counter as file is downloaded.
 )
 Add-Type -AssemblyName System.Web
