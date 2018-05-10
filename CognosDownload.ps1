@@ -6,6 +6,8 @@ Param(
 [string]$extension="csv", #--- VARIABLE --- file extension to save data in csv or xlsx
 [parameter(Mandatory=$false,HelpMessage="eSchool SSO username to use.")]
 [string]$username="0000name", #--- VARIABLE --- SSO username
+[parameter(Mandatory=$false,HelpMessage="File for ADE SSO Password")]
+[string]$passwordfile="C:\Scripts\apscnpw.txt", #--- VARIABLE --- change to a file path for SSO password
 [parameter(Mandatory=$false,HelpMessage="eSchool DSN location.")]
 [string]$espdsn="schoolsms", #--- VARIABLE --- eSchool DSN for your district
 [parameter(Mandatory=$false,HelpMessage="eFinance username to use.")]
@@ -52,8 +54,8 @@ Add-Type -AssemblyName System.Web
 # For eFinance:
 # Use "-username 0000name -efpuser yourefinanceusername -efpdsn schoolfms -eFinance" to run report from eFinance (SSO username is required along with eFinance username)
 
-# Location to export the secured password file. When the password expires, just delete the specific file and run the script to re-create
-$passwordfile = "C:\scripts\apscnpw.txt"
+# When the password expires, just delete the specific file and run the script to re-create
+
 $userdomain = "APSCN"
 #******************* end of variables to change ********************
 #exit codes list
