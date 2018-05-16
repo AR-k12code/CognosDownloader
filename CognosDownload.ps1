@@ -120,10 +120,14 @@ $cWebDir = "ibmcognos"
 
 If ($eFinance) {
     $camName = "efp"    #efp for eFinance
+    $camuser = $efpuser
+    $dsnparam = "spi_db_name"
     $dsnname = $efpdsn
 }
 Else {
     $camName = "esp"    #esp for eSchool
+    $camuser = $username
+    $dsnparam = "dsn"
     $dsnname = $espdsn
 }
 If ($ReportStudio) {$reporttype = "report"} Else {$reporttype = "query"}    #report for Report Studio, query for Query Studio
@@ -189,25 +193,17 @@ if ($reportparams.Length -gt 0) {
     $reportparams = '&' + $reportparams
 }
 
-$camid = "CAMID(%22$($camName)%3aa%3a$($username)%22)%2f$($cognosfolder)$($reporttype)%5b%40name%3d%27$($report)%27%5d"
+$camid = "CAMID(%22$($camName)%3aa%3a$($camuser)%22)%2f$($cognosfolder)$($reporttype)%5b%40name%3d%27$($report)%27%5d"
 
 if ($uiAction -match "run") #run the report live for the data
 {
-    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?dsn=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=CAMID(%22$($camName)%3aa%3a$($username)%22)%2f$($cognosfolder)$($reporttype)%5b%40name%3d%27$($report)%27%5d&ui.name=$($report)&run.outputFormat=CSV&run.prompt=false$($reportparams)&cv.responseFormat=data"
-    #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=CAMID(%22$camName%3au%3a$userid%22)%2ffolder%5b%40name%3d%27$cognosfolder%27%5d%2fquery%5b%40name%3d%27$report%27%5d&ui.name=$report&ui.format=CSV"
-    #       -----------------/cgi-bin/cognosisapi.dll?CAM_action=logonAs&CAMNamespace=********&CAMUsername=*********&CAMPassword=*********&b_action=cognosViewer&ui.action=*********&ui.object=CAMID(%22********%3au%3a*******%22)%2ffolder%5b%40name%3d%27$cognosfolder%27%5d%2fquery%5b%40name%3d%27*******%27%5d&ui.name=*******&ui.format=CSV
+    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?$($dsnparam)=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=$($camid)&ui.name=$($report)&run.prompt=false$($reportparams)&cv.responseFormat=data"
 }
 elseif ($uiAction -match "view") #view a saved version of the report data
 {
-    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?dsn=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=defaultOutput(CAMID(%22$($camName)%3aa%3a$($username)%22)%2f$($cognosfolder)$($reporttype)%5b%40name%3d%27$($report)%27%5d)&ui.name=$($report)&ui.format=CSV$($reportparams)&cv.responseFormat=data"
-    #old 2017-01-16 $url = "$baseURL/$cWebDir/cgi-bin/cognosisapi.dll?dsn=$dsnname&CAM_action=logonAs&CAMNamespace=$camName&CAMUsername=$username&CAMPassword=$password&b_action=cognosViewer&ui.action=$uiAction&ui.object=defaultOutput(CAMID(%22$camName%3aa%3a$username%22)%2ffolder%5b%40name%3d%27$cognosfolder%27%5d%2fquery%5b%40name%3d%27$report%27%5d)&ui.name=$report&ui.format=CSV"
-
-    #eFinance version when enabled
-    If ($eFinance) {
-        $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?spi_db_name=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=defaultOutput(CAMID(%22$($camName)%3aa%3a$($efpuser)%22)%2f$($cognosfolder)query%5b%40name%3d%27$($report)%27%5d)&ui.name=$($report)$($reportparams)&cv.responseFormat=data"
-    }
+    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?$($dsnparam)=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=defaultOutput($($camid))&ui.name=$($report)&run.prompt=false$($reportparams)&cv.responseFormat=data"
 }
-else
+if ($uiAction -notmatch "run" -and $uiAction -notmatch "view")
 {
     throw "Invalid uiAction option: use only 'view' or 'run'"
     Send-Email("[Failure][Invalid UI Action]")
