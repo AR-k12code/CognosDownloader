@@ -19,7 +19,7 @@ Param(
 [parameter(Mandatory=$false,HelpMessage="Report Parameters")]
 [string]$reportparams="", #--- VARIABLE --- Example:"p_year=2017&p_school=Middle School" If a report requires parameters you can specifiy them here.
 [parameter(Mandatory=$false,HelpMessage="Report Wait Timeout")]
-[string]$reportwait=5, #--- VARIABLE --- If the report is not ready immediately wait X seconds and try again. Will try 6 times only!
+[int]$reportwait=5, #--- VARIABLE --- If the report is not ready immediately wait X seconds and try again. Will try 6 times only!
 [parameter(Mandatory=$false,HelpMessage="Use switch for Report Studio created report. Otherwise it will be a Query Studio report")][switch]$ReportStudio,
 [parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")][switch]$eFinance,
 [parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport,
@@ -28,7 +28,7 @@ Param(
 [parameter(Mandatory=$false,HelpMessage="SMTP Server")]
 [string]$smtpserver="smtp-relay.gmail.com", #--- VARIABLE --- change for your email server
 [parameter(Mandatory=$false,HelpMessage="SMTP Server Port")]
-[string]$smtpport="587", #--- VARIABLE --- change for your email server
+[int]$smtpport="587", #--- VARIABLE --- change for your email server
 [parameter(Mandatory=$false,HelpMessage="SMTP eMail From")]
 [string]$mailfrom="noreply@yourdomain.com", #--- VARIABLE --- change for your email from address
 [parameter(Mandatory=$false,HelpMessage="File for SMTP eMail Password")]
