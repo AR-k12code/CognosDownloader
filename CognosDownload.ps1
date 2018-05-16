@@ -19,7 +19,7 @@ Param(
 [parameter(Mandatory=$false,HelpMessage="Report Parameters")]
 [string]$reportparams="", #--- VARIABLE --- Example:"p_year=2017&p_school=Middle School" If a report requires parameters you can specifiy them here.
 [parameter(Mandatory=$false,HelpMessage="Report Wait Timeout")]
-[string]$reportwait=10, #--- VARIABLE --- If the report is not ready immediately wait X seconds and try again. Will try 3 times only!
+[string]$reportwait=5, #--- VARIABLE --- If the report is not ready immediately wait X seconds and try again. Will try 6 times only!
 [parameter(Mandatory=$false,HelpMessage="Use switch for Report Studio created report. Otherwise it will be a Query Studio report")][switch]$ReportStudio,
 [parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")][switch]$eFinance,
 [parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport,
@@ -274,12 +274,12 @@ if ($response.StatusCode -ne 200)
         $reportjob = $($HTMLDataString).Replace('<xml><state>','').Replace('</state></xml>','').Replace('&quot;','''') | ConvertFrom-Json
         
         if ($reportjob.m_sStatus -eq "working") {
-            Write-Host("Report is processing. Please Wait.") -ForeGroundColor Yellow
             $trycount = 0
+            $maxtry = 6
             do {
-                Start-Sleep -Seconds $reportwait
                 $trycount++
-                Write-Host("Try " + [string]$trycount + " of 3...") -ForeGroundColor Yellow
+                Write-Host("Report job status is [$($reportjob.m_sStatus)]. Waiting $($reportwait) seconds before check $($trycount) of $($maxtry)...") -ForeGroundColor Yellow
+                Start-Sleep -Seconds $reportwait
                 $postdata = 'b_action=cognosViewer&'
                 $postdata += 'cv.actionState' + '=' + [System.Web.HttpUtility]::UrlEncode($reportjob.m_sActionState) + '&'
                 $postdata += 'executionParameters' + '=' + [System.Web.HttpUtility]::UrlEncode($reportjob.m_sParameters) + '&'
@@ -312,7 +312,16 @@ if ($response.StatusCode -ne 200)
                 $sr = New-Object System.IO.StreamReader($response.GetResponseStream())
                 $HTMLDataString = $sr.ReadToEnd()
                 #Write-Host($HTMLDataString)
-            } until (($HTMLDataString -match $regex) -or ($trycount -ge 3))
+                try {
+                    if ([xml]$HTMLDataString) { $xmlresponse = $True }
+                } catch {
+                    $xmlresponse = $False
+                }
+
+                if ($xmlresponse) {
+                    $reportjob = $($HTMLDataString).Replace('<xml><state>','').Replace('</state></xml>','').Replace('&quot;','''') | ConvertFrom-Json
+                }
+            } until (($HTMLDataString -match $regex) -or ($trycount -ge $maxtry))
         }
     }
 
