@@ -155,6 +155,12 @@ If ($smtpauth) {
     }
 }
 
+switch ($extension) {
+    "csv" { $fileformat = "CSV" }
+    "xlsx" { $fileformat = "spreadsheetML" }
+    DEFAULT { $fileformat = "CSV" }
+}
+
 $fullfilepath = "$savepath\$report.$extension"
 
 If (!(Test-Path ($savepath))) {
@@ -197,7 +203,7 @@ $camid = "CAMID(%22$($camName)%3aa%3a$($camuser)%22)%2f$($cognosfolder)$($report
 
 if ($uiAction -match "run") #run the report live for the data
 {
-    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?$($dsnparam)=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=$($camid)&ui.name=$($report)&run.prompt=false$($reportparams)&cv.responseFormat=data"
+    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?$($dsnparam)=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=$($camid)&ui.name=$($report)&run.outputFormat=$($fileformat)&run.prompt=false$($reportparams)&cv.responseFormat=data"
 }
 elseif ($uiAction -match "view") #view a saved version of the report data
 {
