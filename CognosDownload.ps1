@@ -238,6 +238,7 @@ If ($FileExists -eq $True) {
 
 
 $request = [System.Net.WebRequest]::Create($url)
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null
 
 #Set the Credentials
 Write-Host("Setting the Credentials now..") -ForeGroundColor Yellow
@@ -252,7 +253,11 @@ $cookieJar = new-object "System.Net.CookieContainer"
 $request.Method = "GET"
 $request.CookieContainer = $cookieJar
 
+#This is needed for Powershell Core and does not invalidate certificate checking.
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null
+
 $response = $request.GetResponse()
+
 if ($response.StatusCode -ne 200)
 {
     $result = "Error : " + $response.StatusCode + " : " + $response.StatusDescription
@@ -464,3 +469,6 @@ if ($extension -eq "csv")
         $reader.Close()
     }
 }
+
+#need a valid exit here so this script can be put into a loop in case a file fails to download on first try
+exit
