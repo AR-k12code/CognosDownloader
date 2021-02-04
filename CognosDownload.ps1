@@ -1,76 +1,103 @@
+#Get-Help .\CognosDownload.ps1
+#Get-Help .\CognosDownload.ps1 -Examples
+
+<#
+  .SYNOPSIS
+  This script is used to download reports from the Arkansas Cognos 11 using your SSO credentails.
+
+  .DESCRIPTION
+  CognosDownload.ps1 invoked with the proper parameters will download a report in the desired format.
+
+  .EXAMPLE
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report students
+
+  .EXAMPLE
+  PS> .\CognosDownload.ps1 -username 0401cmillsap  -espdsn gentrysms -report sections -reportparams "p_year=2021"
+  This provides a simple solution to answer a single page prompt.
+
+  .EXAMPLE
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report sections -XMLParameters "CustomPromptAnswers.xml"
+  This provides for answering more complex and multipage prompt pages. Script will automatically use an XML file named the the Report ID with an extension of .xml
+  
+  .EXAMPLE
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report activities -cognosfolder "_Share Temporarily Between Districts/Gentry/automation" -TeamContent
+
+  .EXAMPLE
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report "APSCN Virtual AR Student File" -savepath .\ -ShowReportDetails -TeamContent -cognosfolder "Demographics/Demographic Download Files" -XMLParameters i4C884862DFD8470ABFF2571CB47F01EA.xml -extension pdf
+
+  .EXAMPLE
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report students -SendMail -mailto "technology@gentrypioneers.com" -mailfrom noreply@gentrypioneers.com
+
+  .EXAMPLE
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report students -ShowReportDetails -SkipDownloadingFile
+
+  .PARAMETER ShowReportDetails
+  Print details about the report including Title, Owner, Owner Email, Location in Cognos, and the ID.
+  
+  .PARAMETER SkipDownloadingFile
+  All other steps except actually downloading the final file to the specified save path.
+
+
+#>
+
 Param(
-[parameter(Position=0,Mandatory=$true,HelpMessage="Give the name of the report you want to download.")][string]$report,
-[parameter(Position=1,Mandatory=$false,HelpMessage="Give a specific folder to download the report into.")]
-[string]$savepath="C:\ImportFiles\", #--- VARIABLE --- change to a path you want to save files
-[parameter(Position=2,Mandatory=$false,HelpMessage="Extension to save onto the report name.")][ValidateSet("csv","xlsx")]
-[string]$extension="csv", #--- VARIABLE --- file extension to save data in csv or xlsx
-[parameter(Mandatory=$false,HelpMessage="eSchool SSO username to use.")]
-[string]$username="0000name", #--- VARIABLE --- SSO username
-[parameter(Mandatory=$false,HelpMessage="File for ADE SSO Password")]
-[string]$passwordfile="C:\Scripts\apscnpw.txt", #--- VARIABLE --- change to a file path for SSO password
-[parameter(Mandatory=$false,HelpMessage="eSchool DSN location.")]
-[string]$espdsn="schoolsms", #--- VARIABLE --- eSchool DSN for your district
-[parameter(Mandatory=$false,HelpMessage="eFinance username to use.")]
-[string]$efpuser="yourefinanceusername", #--- VARIABLE --- eFinance username
-[parameter(Mandatory=$false,HelpMessage="eFinance DSN location.")]
-[string]$efpdsn="schoolfms", #--- VARIABLE --- eFinance DSN for your district
-[parameter(Mandatory=$false,HelpMessage="Cognos Folder Structure.")]
-[string]$cognosfolder="My Folders", #--- VARIABLE --- Cognos Folder "Folder 1/Sub Folder 2/Sub Folder 3" NO TRAILING SLASH
-[parameter(Mandatory=$false,HelpMessage="Report Parameters")]
-[string]$reportparams="", #--- VARIABLE --- Example:"p_year=2017&p_school=Middle School" If a report requires parameters you can specifiy them here.
-[parameter(Mandatory=$false,HelpMessage="Report Wait Timeout")]
-[int]$reportwait=5, #--- VARIABLE --- If the report is not ready immediately wait X seconds and try again. Will try 6 times only!
-[parameter(Mandatory=$false,HelpMessage="Use switch for Report Studio created report. Otherwise it will be a Query Studio report")][switch]$ReportStudio,
-[parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")][switch]$eFinance,
-[parameter(Mandatory=$false,HelpMessage="Run a live version instead of just getting a saved version.")][switch]$RunReport,
-[parameter(Mandatory=$false,HelpMessage="Send an email on failure.")][switch]$SendMail,
-[parameter(Mandatory=$false,HelpMessage="SMTP Auth Required.")][switch]$smtpauth,
-[parameter(Mandatory=$false,HelpMessage="SMTP Server")]
-[string]$smtpserver="smtp-relay.gmail.com", #--- VARIABLE --- change for your email server
-[parameter(Mandatory=$false,HelpMessage="SMTP Server Port")]
-[int]$smtpport="587", #--- VARIABLE --- change for your email server
-[parameter(Mandatory=$false,HelpMessage="SMTP eMail From")]
-[string]$mailfrom="noreply@yourdomain.com", #--- VARIABLE --- change for your email from address
-[parameter(Mandatory=$false,HelpMessage="File for SMTP eMail Password")]
-[string]$smtppasswordfile="C:\Scripts\emailpw.txt", #--- VARIABLE --- change to a file path for email server password
-[parameter(Mandatory=$false,HelpMessage="Send eMail to")]
-[string]$mailto="technology@yourdomain.com", #--- VARIABLE --- change for your email to address
-[parameter(Mandatory=$false,HelpMessage="Show progress of report downloading.")][switch]$showprogress #Show counter as file is downloaded.
+    [parameter(Mandatory=$true,HelpMessage="Give the name of the report you want to download.")]
+        [string]$report,
+    [parameter(Mandatory=$false,HelpMessage="Give a specific folder to download the report into.")]
+        [string]$savepath="C:\scripts",
+    [parameter(Position=2,Mandatory=$false,HelpMessage="Format you want to download report as.")]
+        [string]$extension="CSV",
+    [parameter(Mandatory=$false,HelpMessage="eSchool SSO username to use.")]
+        [string]$username="0000name", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED YET BUT WILL BE IN THE FUTURE.
+    [parameter(Mandatory=$false,HelpMessage="File for ADE SSO Password")]
+        [string]$passwordfile="C:\Scripts\apscnpw.txt", # Override where the script should find the password for the user specified with -username.
+    [parameter(Mandatory=$false,HelpMessage="eSchool DSN location.")]
+        [string]$espdsn="schoolsms", #YOU SHOULD NOT MODIFY THIS. USER THE PARAMETER. FOR BACKWARDS COMPATIBILITY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE.
+    [parameter(Mandatory=$false,HelpMessage="eFinance username to use.")]
+        [string]$efpuser="yourefinanceusername", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE.
+    [parameter(Mandatory=$false,HelpMessage="eFinance DSN location.")]
+        [string]$efpdsn="schoolfms", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE.
+    [parameter(Mandatory=$false,HelpMessage="Cognos Folder Structure.")]
+        [string]$cognosfolder="My Folders", #Cognos Folder "Folder 1/Sub Folder 2/Sub Folder 3" NO TRAILING SLASH
+    [parameter(Mandatory=$false,HelpMessage="Report Parameters")]
+        [string]$reportparams="", #If a report requires parameters you can specifiy them here. Example:"p_year=2017&p_school=Middle School"
+    [parameter(Mandatory=$false,HelpMessage="Get the report from eFinance.")]
+        [switch]$eFinance,
+    [parameter(Mandatory=$false,HelpMessage="Send an email on failure.")]
+        [switch]$SendMail,
+    [parameter(Mandatory=$false,HelpMessage="SMTP Auth Required.")]
+        [switch]$smtpauth,
+    [parameter(Mandatory=$false,HelpMessage="SMTP Server")]
+        [string]$smtpserver="smtp-relay.gmail.com", #--- VARIABLE --- change for your email server
+    [parameter(Mandatory=$false,HelpMessage="SMTP Server Port")]
+        [int]$smtpport="587", #--- VARIABLE --- change for your email server
+    [parameter(Mandatory=$false,HelpMessage="SMTP eMail From")]
+        [string]$mailfrom="noreply@yourdomain.com", #--- VARIABLE --- change for your email from address
+    [parameter(Mandatory=$false,HelpMessage="File for SMTP eMail Password")]
+        [string]$smtppasswordfile="C:\Scripts\emailpw.txt", #--- VARIABLE --- change to a file path for email server password
+    [parameter(Mandatory=$false,HelpMessage="Send eMail to")]
+        [string]$mailto="technology@yourdomain.com", #--- VARIABLE --- change for your email to address
+    [parameter(Mandatory=$false,HelpMessage="Minimum line count required for CSVs")]
+        [int]$requiredlinecount=3, #This should be the ABSOLUTE minimum you expect to see. Think schools.csv for smaller districts.
+    [parameter(Mandatory=$false)]
+        [switch]$ShowReportDetails, #Print report details to terminal.
+    [parameter(Mandatory=$false)]
+        [switch]$SkipDownloadingFile, #Do not actually download the file.
+    [parameter(Mandatory=$false)]
+        [switch]$dev, #use the development URL dev.adecognos.arkansas.gov
+    [parameter(Mandatory=$false)]
+        [switch]$TeamContent, #Report is in the Team Content folder. You will also need to have specified the -cognosfolder parameter with the path.
+    [parameter(Mandatory=$false)]
+        [string]$XMLParameters, #Path to XML for answering prompts.
+    [parameter(Mandatory=$false)]
+        [switch]$SavePrompts
 )
+
 Add-Type -AssemblyName System.Web
 
-# The above parameters can be called directly from powershell switches
-# In Cognos, do the following:
-# 1. Setup a report with specific name (best without spaces like MyReportName) to run scheduled to save with which format you want then schedule this script to download it.
-# 2. You will need to determine the DSN (database name) for your district
-#    To obtain this you need to log in to the eSchool Cognos site using and view the source code of the overall frameset.
-#    The dsn is displayed in the second <frame> tag like so where the ****** is: src="https://adecognos.arkansas.gov/ibmcognos/cgi-bin/cognos.cgi?dsn=******
-# On computer to download data:
-# 1. After adjusting relevant variables for your district and user account
-# 2. Create folder to store password data for script (default of C:\scripts)
-# 3. Run from command line or batch script: powershell.exe -executionpolicy bypass -file C:\ImportFiles\Scripts\CognosArgsDownload.ps1 MyReportName
-#    Scripts can also use command switches from powershell: CognosArgsDownload.ps1 -report MyReportName -savepath C:\Scripts -extension csv -username 0000username -espdsn schoolsms
-# In case report was not built with Query Studio, use -ReportStudio
-# For eFinance:
-# Use "-username 0000name -efpuser yourefinanceusername -efpdsn schoolfms -eFinance" to run report from eFinance (SSO username is required along with eFinance username)
+#powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" -espdns schoolsms 
 
-# When the password expires, just delete the specific file and run the script to re-create
-
-$userdomain = "APSCN"
-#******************* end of variables to change ********************
-#exit codes list
-#1 = Specified path does not exist from parameter
-#2 = Invalid uiAction option specified
-#3 = sURL not found. The script tried to click the report link, but did not get the expected result of already saved report
-#4 = Got HTTP reponse of something other than 200 (OK), likely received a 401 (Unauthorized)
-#9 = General unspecified trap for error
-#10 = CAM_PASSPORT_ERROR detected, check your password
-#11 = AAA-AUT-0011 detected, namespace problem in report
-#12 = Failed to verify CSV format, reverted file if available
-#13 = CSV file didn't download to expected path
-#20 = Unable to query for data source, check the DSN
-#29 = Error during login found in returned data, probably with DSN or path requested
-#30 = Failed to send email to smtp server. (possible no internet.)
+# When the password expires, just delete the specific file (c:\scripts\apscnpw.txt) and run the script to re-create.
 
 # Revisions:
 # 2014-07-23: Brian Johnson: Updated URL string to include dsn parameters necessary for eSchool and re-enabled CredentialCache setting to login
@@ -83,10 +110,24 @@ $userdomain = "APSCN"
 # 2018-04-26: (reverted) scottorgan: Nested folder support Usage examples: CognosDownload.ps1 Clever\Entollments ; CognosDownload.ps1 "Other Reports\MAP Roster"
 # 2018-04-26: (reverted) BPSDJreed: Email notification for expired password
 # 2018-04-24: Craig Millsap: Added recursive nested folders, email notifications, waiting for report to generate.
+# 2020-11-19: Craig Millsap: Major overhaul for Cognos11 upgrade. Working eSchool Plus. eFinance is not working yet.
+# 2020-12-01: Craig Millsap: Migrated over to using Invoke-RestMethod and better validation. Huge thanks to Jon Penn for the API documentation.
+# 2020-02-04: Craig Millsap: Completed saving parameters, looping until report is ready, validate error messages.
+
+#Example for the Team Content folder:
+#https://dev.adecognos.arkansas.gov/ibmcognos/bi/v1/disp/rds/wsil/path/Team%20Content%2FStudent%20Management%20System%2F_Share%20Temporarily%20Between%20Districts%2FGentry%2Fautomation
+#/content/folder[@name='Student Management System']/folder[@name='_Share Temporarily Between Districts']/folder[@name='Gentry']/folder[@name='automation']/query[@name='activities']
+#https://dev.adecognos.arkansas.gov/ibmcognos/bi/v1/disp/rds/atom/path/Team Content/Student Management System/_Share Temporarily Between Districts/Gentry/automation/activities
+#CAMID("esp:a:0401cmillsap")/folder[@name='My Folders']/folder[@name='automation']/query[@name='activities']
+
+$currentPath=(Split-Path ((Get-Variable MyInvocation -Scope 0).Value).MyCommand.Path)
+if (Test-Path $currentPath\CognosDefaults.ps1) {
+    . $currentPath\CognosDefaults.ps1
+}
 
 #send mail on failure.
 $mailsubject = "[CognosDownloader]"
-function Send-Email([string]$failurereason) {
+function Send-Email([string]$failurereason,[string]$errormessage) {
     if ($SendMail) {
         $msg = New-Object Net.Mail.MailMessage
         $smtp = New-Object Net.Mail.SmtpClient($smtpserver, $smtpport)
@@ -99,6 +140,9 @@ function Send-Email([string]$failurereason) {
         #Include date so emails don't group in a thread.
         $msg.subject =  $mailsubject + $failurereason + "[$(Get-Date -format MM/dd/y)]" + '[' + $report + ']'
         $msg.Body = "The report " + $report  + " failed to download properly.`r`n"
+        if ($errormessage) {
+            $msg.Body += "$errormessage`r`n"
+        }
         $msg.Body += $url
         
         try {
@@ -110,45 +154,52 @@ function Send-Email([string]$failurereason) {
     }
 }
 
-# Cognos ui action to perform 'run' or 'view'
-# run not fully implemented
-If ($RunReport) {$uiAction = "run"} Else {$uiAction = "view"}
+function Reset-DownloadedFile([string]$fullfilepath) {
+    $PrevOldFileExists = Test-Path ($fullfilepath + ".old")
+    if ($PrevOldFileExists -eq $True) {
+        Write-Host -NoNewline "Deleting old $report..." -ForeGroundColor Yellow
+        Remove-Item -Path $fullfilepath -Force -ErrorAction SilentlyContinue
+        Rename-Item -Path ($fullfilepath + ".old") -newname ($fullfilepath)
+    }
+    Write-Host "Reversing old $($report)." -ForeGroundColor Red
+}
 
-# server location for Cognos
-$baseURL = "https://adecognos.arkansas.gov"
-$cWebDir = "ibmcognos"
+# URL for Cognos
+if ($dev) {
+    $baseURL = "https://dev.adecognos.arkansas.gov"
+} else {
+    $baseURL = "https://adecognos.arkansas.gov"
+}
 
 If ($eFinance) {
     $camName = "efp"    #efp for eFinance
-    $camuser = $efpuser
     $dsnparam = "spi_db_name"
     $dsnname = $efpdsn
-}
-Else {
+    $camid = "CAMID(""efp_x003Aa_x003A$($efpuser)"")"
+} else {
     $camName = "esp"    #esp for eSchool
-    $camuser = $username
     $dsnparam = "dsn"
     $dsnname = $espdsn
+    $camid = "CAMID(""esp_x003Aa_x003A$($username)"")"
 }
-If ($ReportStudio) {$reporttype = "report"} Else {$reporttype = "query"}    #report for Report Studio, query for Query Studio
 
 #Script to create a password file for Cognos download Directory
 #This script MUST BE RAN LOCALLY to work properly! Run it on the same machine doing the cognos downloads, this does not work remotely!
 
-If ((Test-Path ($passwordfile))) {
+if ((Test-Path ($passwordfile))) {
     $password = Get-Content $passwordfile | ConvertTo-SecureString
-}
-Else {
+} else {
     Write-Host("Password file does not exist! [$passwordfile]. Please enter a password to be saved on this computer for scripts") -ForeGroundColor Yellow
     Read-Host "Enter Password" -AsSecureString |  ConvertFrom-SecureString | Out-File $passwordfile
     $password = Get-Content $passwordfile | ConvertTo-SecureString
 }
 
+$creds = New-Object System.Management.Automation.PSCredential $username,$password
+
 If ($smtpauth) {
-    If ((Test-Path ($smtppasswordfile))) {
+    if ((Test-Path ($smtppasswordfile))) {
         $smtppassword = Get-Content $smtppasswordfile | ConvertTo-SecureString
-    }
-    Else {
+    } else {
         Write-Host("SMTP Password file does not exist! [$smtppasswordfile]. Please enter a password to be saved on this computer for emails") -ForeGroundColor Yellow
         Read-Host "Enter Password" -AsSecureString |  ConvertFrom-SecureString | Out-File $smtppasswordfile
         $mailfrompassword = Get-Content $smtppasswordfile | ConvertTo-SecureString
@@ -156,6 +207,7 @@ If ($smtpauth) {
 }
 
 switch ($extension) {
+    "pdf" { $fileformat = "PDF" }
     "csv" { $fileformat = "CSV" }
     "xlsx" { $fileformat = "spreadsheetML" }
     DEFAULT { $fileformat = "CSV" }
@@ -169,63 +221,6 @@ If (!(Test-Path ($savepath))) {
     exit 1 #specified save folder does not exist
 }
 
-#get current datetime for if-modified-since header for file
-$filetimestamp = Get-Date
-
-[System.Net.CredentialCache]$MyCredentialCache
-[System.Net.HttpWebRequest]$request
-[System.Net.HttpWebResponse]$response
-[System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
-
-#Include folders. In the future create an array from split at /
-if ($cognosfolder -eq "My Folders") {
-    $cognosfolder = "folder[@name='My Folders']/"
-    $cognosfolder = $([System.Web.HttpUtility]::UrlEncode($cognosfolder)).replace('+','%20')
-} else {
-    $folders = $cognosfolder.split('/')
-    $cognosfolder = ''
-    for ($counter=0; $counter -lt $folders.Length; $counter++) {
-        $cognosfolder += "folder[@name='" + [string]$folders[$counter] + "']/"
-    }
-    $cognosfolder = "folder[@name='My Folders']/" + $cognosfolder
-    $cognosfolder = $([System.Web.HttpUtility]::UrlEncode($cognosfolder)).replace('+','%20')
-}
-
-#Write-Host $cognosfolder
-#Write-Host $([System.Web.HttpUtility]::UrlDecode($cognosfolder))
-
-if ($reportparams.Length -gt 0) {
-    #$reportparams = $([System.Web.HttpUtility]::UrlEncode('&' + $reportparams)).replace('+','%20').replace('%26','&')
-    $reportparams = '&' + $reportparams
-}
-
-$camid = "CAMID(%22$($camName)%3aa%3a$($camuser)%22)%2f$($cognosfolder)$($reporttype)%5b%40name%3d%27$($report)%27%5d"
-
-if ($uiAction -match "run") #run the report live for the data
-{
-    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?$($dsnparam)=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=$($camid)&ui.name=$($report)&run.outputFormat=$($fileformat)&run.prompt=false$($reportparams)&cv.responseFormat=data"
-}
-elseif ($uiAction -match "view") #view a saved version of the report data
-{
-    $url = "$($baseURL)/$($cWebDir)/cgi-bin/cognos.cgi?$($dsnparam)=$($dsnname)&CAM_action=logonAs&CAMNamespace=$($camName)&CAMUsername=$($username)&CAMPassword=$($password)&b_action=cognosViewer&ui.action=$($uiAction)&ui.object=defaultOutput($($camid))&ui.name=$($report)&run.prompt=false$($reportparams)&cv.responseFormat=data"
-}
-if ($uiAction -notmatch "run" -and $uiAction -notmatch "view")
-{
-    throw "Invalid uiAction option: use only 'view' or 'run'"
-    Send-Email("[Failure][Invalid UI Action]")
-    exit 2 #option not implemented
-}
-
-#Write-Host $url
-#Write-Host $([System.Web.HttpUtility]::UrlDecode($url))
-
-trap
-{
-    Write-Host $_
-    Send-Email("[Failure][Generic]")
-    exit 9 #general trap for errors
-}
-
 if(!(Split-Path -parent $savepath) -or !(Test-Path -pathType Container (Split-Path -parent $savepath))) {
   $savepath = Join-Path $pwd (Split-Path -leaf $savepath)
 }
@@ -236,239 +231,277 @@ If ($FileExists -eq $True) {
     $filetimestamp = (Get-Item $fullfilepath).LastWriteTime
 }
 
-
-$request = [System.Net.WebRequest]::Create($url)
-[System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null
-
-#Set the Credentials
-Write-Host("Setting the Credentials now..") -ForeGroundColor Yellow
-$request.UseDefaultCredentials = $true
-$request.PreAuthenticate = $true
-[System.Net.NetworkCredential]$NetworkCredential = New-Object System.Net.NetworkCredential($username, $password, $userdomain)
-$MyCredentialCache = New-Object System.Net.CredentialCache
-$MyCredentialCache.Add($url, "Basic", $NetworkCredential)
-$request.Credentials = $NetworkCredential
-
-$cookieJar = new-object "System.Net.CookieContainer"
-$request.Method = "GET"
-$request.CookieContainer = $cookieJar
-
-#This is needed for Powershell Core and does not invalidate certificate checking.
-[System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null
-
-$response = $request.GetResponse()
-
-if ($response.StatusCode -ne 200)
-{
-    $result = "Error : " + $response.StatusCode + " : " + $response.StatusDescription
-    $result
-    Send-Email("[Failure][" + [string]$response.StatusCode + "]")
-    exit 4 #was not a HTTP response of 200 (OK)
-} else {
-    $sr = New-Object System.IO.StreamReader($response.GetResponseStream())
-    $HTMLDataString = $sr.ReadToEnd()
-    
-    Write-Host("Downloaded HTML to retrieve report url.") -ForeGroundColor Yellow
-    $regex = [regex]"var sURL = '(.*?)'"
-
-    try {
-        if ([xml]$HTMLDataString) { $xmlresponse = $True }
-    } catch {
-        $xmlresponse = $False
-    }
-
-    if ($xmlresponse) {
-        $reportjob = $($HTMLDataString).Replace('<xml><state>','').Replace('</state></xml>','').Replace('&quot;','''') | ConvertFrom-Json
-        
-        if ($reportjob.m_sStatus -eq "working") {
-            $trycount = 0
-            $maxtry = 6
-            do {
-                $trycount++
-                Write-Host("Report job status is [$($reportjob.m_sStatus)]. Waiting $($reportwait) seconds before check $($trycount) of $($maxtry)...") -ForeGroundColor Yellow
-                Start-Sleep -Seconds $reportwait
-                $postdata = 'b_action=cognosViewer&'
-                $postdata += 'cv.actionState' + '=' + [System.Web.HttpUtility]::UrlEncode($reportjob.m_sActionState) + '&'
-                $postdata += 'executionParameters' + '=' + [System.Web.HttpUtility]::UrlEncode($reportjob.m_sParameters) + '&'
-                $postdata += 'm_tracking' + '=' + [System.Web.HttpUtility]::UrlEncode($reportjob.m_sTracking) + '&'
-                $postdata += 'ui.cafcontextid' + '=' + [System.Web.HttpUtility]::UrlEncode($reportjob.m_sCAFContext) + '&'
-                $postdata += 'ui.conversation' + '=' + [System.Web.HttpUtility]::UrlEncode($reportjob.m_sConversation) + '&'
-                $postdata += 'ui.object' + '=' + "$camid" + '&'
-                $postdata += 'ui.objectClass=report&'
-                $postdata += 'ui.primaryAction=run&'
-                $postdata += 'ui.action=wait&'
-                $postdata += 'cv.responseFormat=data&'
-                
-                $postdata = [byte[]][char[]]$postdata
-
-                $request = [System.Net.WebRequest]::Create("https://adecognos.arkansas.gov/ibmcognos/cgi-bin/cognos.cgi")
-                $request.UseDefaultCredentials = $true
-                $request.PreAuthenticate = $true
-                [System.Net.NetworkCredential]$NetworkCredential = New-Object System.Net.NetworkCredential($username, $password, $userdomain)
-                $MyCredentialCache = New-Object System.Net.CredentialCache
-                $MyCredentialCache.Add($url, "Basic", $NetworkCredential)
-                $request.Credentials = $NetworkCredential
-                $request.Method = "POST"
-                $request.ContentType = "application/x-www-form-urlencoded"
-                $request.CookieContainer = $cookieJar
-
-                $stream = $request.GetRequestStream();
-                $stream.Write($postdata, 0, $postdata.Length);
-                
-                $response = $request.GetResponse()
-                $sr = New-Object System.IO.StreamReader($response.GetResponseStream())
-                $HTMLDataString = $sr.ReadToEnd()
-                #Write-Host($HTMLDataString)
-                try {
-                    if ([xml]$HTMLDataString) { $xmlresponse = $True }
-                } catch {
-                    $xmlresponse = $False
-                }
-
-                if ($xmlresponse) {
-                    $reportjob = $($HTMLDataString).Replace('<xml><state>','').Replace('</state></xml>','').Replace('&quot;','''') | ConvertFrom-Json
-                }
-            } until (($HTMLDataString -match $regex) -or ($trycount -ge $maxtry))
-        }
-    }
-
-    
-    if ($HTMLDataString -notmatch $regex)
-    {
-        if ($HTMLDataString -match [regex]"CAM_PASSPORT_ERROR") #this error is in the output of HTMLDataString
-        {
-            Write-Host "Found 'CAM_PASSPORT_ERROR': Please check the password used for script"
-            Send-Email("[Failure][Password]")
-            exit 10 #login error
-        }
-        elseif ($HTMLDataString -match [regex]"AAA-AUT-0011") #this error is in the output of HTMLDataString for Invalid Namespace
-        {
-            Write-Host($HTMLDataString) -ForeGroundColor Gray
-            Write-Host "Found 'AAA-AUT-0011': Invalid Namespace error"
-            Send-Email("[Failure][Namespace]")
-            exit 11 #Invalid namespace error
-        }
-        elseif ($HTMLDataString -match [regex]"Unable to query for data source")
-        {
-            Write-Host($HTMLDataString) -ForeGroundColor Gray
-            Write-Host "Found 'Unable to query for data source' in returned HTMLDataString: Check your DSN"
-            Send-Email("[Failure][Datasource]")
-            exit 20 #Unable to query for data source
-        }
-        elseif ($HTMLDataString -match [regex]"Error during login")
-        {
-            Write-Host($HTMLDataString) -ForeGroundColor Gray
-            Write-Host "Found 'Error during login' in returned HTMLDataString: Check your DSN paths"
-            Send-Email("[Failure][DNSLogin]")
-            exit 29 #Error during login found in returned data
-        }
-        Write-Host($HTMLDataString) -ForeGroundColor Gray
-        throw "'var sURL' not found"
-        Send-Email("[Failure][sURL]")
-        exit 3 #'var sURL' not found
-    }
-    $urlMatch = $regex.Matches($HTMLDataString)
-    Write-Host("Found URL in data to download report.") -ForeGroundColor Yellow
-    $fileURLString = $urlMatch[0].Value.Replace("var sURL = '", "").Replace("'", "")
-
-    if ($uiAction -match "run") #run the report live for the data
-    {
-        # temp to show data from the HTMLDataString for the sURL
-        #Write-Host($HTMLDataString) -ForeGroundColor White
-    }
-
-    # Append beginning part of url
-    $fileURLString = "$baseURL$fileURLString"
-
-    [System.Net.HttpWebRequest] $fileRequest = [System.Net.HttpWebRequest] [System.Net.WebRequest]::Create($fileURLString)
-    $fileRequest.CookieContainer = $request.CookieContainer
-    $fileRequest.AllowWriteStreamBuffering = $false
-    $fileRequest.Credentials = $NetworkCredential
-    $fileRequest.IfModifiedSince = $filetimestamp
-    $fileResponse = [System.Net.HttpWebResponse] $fileRequest.GetResponse()
-
-    $PrevFileExists = Test-Path $fullfilepath
-    If ($PrevFileExists -eq $True) {
-        $PrevOldFileExists = Test-Path ($fullfilepath + ".old")
-        If ($PrevOldFileExists -eq $True) {
-            Write-Host("Deleting old $report...") -ForeGroundColor Yellow
-            Remove-Item -Path ($fullfilepath + ".old")
-        }
-        Write-Host("Renaming old $report...") -ForeGroundColor Yellow
-        Rename-Item -Path $fullfilepath -newname ($fullfilepath + ".old")
-    }
-
-    Write-Host("Downloading $report...") -ForeGroundColor Yellow
-    [System.IO.Stream]$st = $fileResponse.GetResponseStream()
-    # write to disk
-    $mode = [System.IO.FileMode]::Create
-    $fs = New-Object System.IO.FileStream $fullfilepath, $mode
-    $read = New-Object byte[] 256
-    [int] $count = $st.Read($read, 0, $read.Length)
-    [int] $tcount = $count #set to initial count
-    [int] $reslength = $fileResponse.ContentLength
-    while ($count -gt 0)
-    {
-        $fs.Write($read, 0, $count)
-        $count = $st.Read($read, 0, $read.Length)
-        $tcount += $count
-        if ($showprogress) { Write-Host "$tcount of $reslength" -NoNewline "`r" }
-    }
-    $fs.Close()
-    $st.Close()
-    $fileResponse.Close()
-    Write-Host("File [$fullfilepath] downloaded [$tcount] of [$reslength] bytes") -ForeGroundColor Yellow
+#submit login.
+try {
+    Write-Host -NoNewline "Attempting authentication... " -ForegroundColor Yellow
+    $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session -Method 'GET' -Credential $creds #-ErrorAction Ignore -SkipHttpErrorCheck
+    Write-Host "Success." -ForegroundColor Yellow
+} catch {
+    Write-Host "Unable to authenticate." -ForegroundColor Red
+    exit(1)
 }
-$response.Close()
 
-# check file for proper format if csv
-if ($extension -eq "csv")
-{
-    $FileExists = Test-Path $fullfilepath
-    If ($FileExists -eq $False) {
-        Write-Host("Does not exist:" + $fullfilepath)
-        Send-Email("[Failure][Output]")
-        exit 13 #CSV file didn't download to expected path
+#switch to site.
+try {
+    Write-Host -NoNewline "Attempting switch into $dsnname... " -ForegroundColor Yellow
+    $response2 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -WebSession $session `
+    -Method "POST" `
+    -ContentType "application/json; charset=UTF-8" `
+    -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}"
+    Write-Host "Success." -ForegroundColor Yellow
+} catch {
+    Write-Host "Unable to switch into $dsnname." -ForegroundColor Red
+    exit(2)
+}
+
+#No subfolder specified.
+if ($cognosfolder -eq "My Folders") {
+    #$cognosfolder = ([System.Web.HttpUtility]::UrlEncode("My Folders")).Replace('+','%20')
+    $cognosfolder = "$($camid)/My Folders".Replace(' ','%20')
+} elseif ($TeamContent) {
+    $cognosfolder = "Team Content/Student Management System/$($cognosfolder)".Replace(' ','%20')
+} else {
+    #$cognosfolder = ([System.Web.HttpUtility]::UrlEncode("My Folders/$($cognosfolder)")).Replace('+','%20')
+    $cognosfolder = "$($camid)/My Folders/$($cognosfolder)".Replace(' ','%20')
+}
+
+#Get the Atom feed
+try {
+    Write-Host -NoNewline "Attempting to retrieve report details for $($report)... " -ForegroundColor Yellow
+    $response3 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/atom/path/$($cognosfolder)/$($report)" -WebSession $session
+    $reportDetails = $response3.feed
+    $reportID = $reportDetails.entry.storeID
+    Write-Host "Success." -ForegroundColor Yellow
+    
+} catch {
+    Write-Host "Unable to retrieve report details. Please check the supplied report name and cognosfolder." -ForegroundColor Red
+    exit(3)
+}
+
+#Get the possible outputformats.
+try {
+    Write-Host -NoNewline "Retrieving possible formats... " -ForegroundColor Yellow
+    $response4 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormats/path/$($cognosfolder)/$($report)" -WebSession $session
+    Write-Host "Success." -ForegroundColor Yellow
+
+    if ($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) {
+        Write-Host " - $($report) ($($reportID)) can be exported in the following formats:" $($($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) -join ',') -ForegroundColor Yellow
+    
+        #This is case sensitive. So we need to retrieve the value from the response and match to the possible incorrect case provided to script.
+        if ($($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) -contains $fileformat) {
+            $possibleFormats = $($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName)
+            $validExtension = $possibleFormats[$($possibleFormats.ToLower().IndexOf($fileformat.ToLower()))]
+        } else {
+            Write-Host "You have requested an invalid extension type for this report."
+            Throw "Invalid extension requested."
+        }
+    } else {
+        Write-Host "Failed to retrieve output formats for the supplied report." -ForegroundColor Red
     }
-    #line counts to keep track of lines
-    $lcount = 0
-    $badlcount = 0
 
-    for(;;) {
-        $reader = [System.IO.File]::OpenText($fullfilepath)
-        $l = $reader.ReadLine()
-        if ($l -eq $null) { break }
-        if ($l -match '^\w,*')
-        {
-            $lcount++
-        }
-        else
-        {
-            $badlcount++
-        }
-        #exit based on whether number of lines passed
-        if($lcount -eq 5)
-        {
-            Write-Host("Passed CSV $lcount lines...") -ForeGroundColor Yellow
-            $reader.Close()
-            break
-        }
-        if($badlcount -gt 0)
-        {
-            #bad file revert file
+} catch {
+    Write-Host "Failed to retrieve output formats for the supplied report." -ForegroundColor Red
+    exit(4)
+}
+
+#Print Additional Details to Terminal
+if ($ShowReportDetails) {
+    $details = $reportDetails | Select-Object -Property title,owner,ownerEmail,location,id
+    $details.id = $reportID
+    $details | Format-List
+}
+
+if (-Not($SkipDownloadingFile)) {
+    Try {
+        
+        #Move Previous File
+        $PrevFileExists = Test-Path $fullfilepath
+        If ($PrevFileExists -eq $True) {
             $PrevOldFileExists = Test-Path ($fullfilepath + ".old")
             If ($PrevOldFileExists -eq $True) {
                 Write-Host("Deleting old $report...") -ForeGroundColor Yellow
-                Rename-Item -Path $fullfilepath -newname ($fullfilepath)
+                Remove-Item -Path ($fullfilepath + ".old")
             }
-            Write-Host("Failed CSV verify. Reversing old $report...") -ForeGroundColor Red
-            $reader.Close()
-            Send-Email("[Failure][Verify]")
-            exit 12 #reverted file format
+            try {
+                Write-Host -NoNewline "Renaming old $report... " -ForeGroundColor Yellow
+                Rename-Item -Path $fullfilepath -newname ($fullfilepath + ".old")
+                Write-Host "Success." -ForegroundColor Yellow
+            } catch {
+                Write-Host "Failed to rename old report." -ForegroundColor Red
+            }
         }
-        $reader.Close()
+
+        $downloadURL = "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormat/path/$($cognosfolder)/$($report)/$($validExtension)?v=3&async=MANUAL&useRelativeURL=true"
+        
+        #https://www.ibm.com/support/knowledgecenter/SSEP7J_11.1.0/com.ibm.swg.ba.cognos.ca_dg_cms.doc/c_dg_raas_run_rep_prmpt.html#dg_raas_run_rep_prmpt
+        #I think this should be a path as well to the xmlData so you can save it to a text file and pull in when needed to run.
+        #Maybe if the prompts return a Test-Path $True then import and use the xmlData field instead. This should allow for more complex prompts.
+
+        if ($reportparams -ne '') {
+            $downloadURL = $downloadURL + '&' + $reportparams
+        }
+
+        try {
+            if ($XMLParameters -ne '') {
+                if (Test-Path "$XMLParameters") {
+                    Write-Host "Info: Using """$XMLParameters""" in current directory for report prompts." -ForegroundColor Yellow
+                    $reportParamXML = (Get-Content "$XMLParameters") -replace ' xmlns:rds="http://www.ibm.com/xmlns/prod/cognos/rds/types/201310"','' -replace 'rds:','' -replace '<','%3C' -replace '>','%3E' -replace '/','%2F'
+                    $promptXML = [xml]((Get-Content "$XMLParameters") -replace ' xmlns:rds="http://www.ibm.com/xmlns/prod/cognos/rds/types/201310"','' -replace 'rds:','')
+                    $downloadURL = $downloadURL + '&xmlData=' + $reportParamXML
+                }
+            } elseif (Test-Path "$($reportID).xml") {
+                Write-Host "Info: Found ""$($reportID).xml"" in current directory. Using saved report prompts." -ForegroundColor Yellow
+                $reportParamXML = (Get-Content "$($reportID).xml") -replace ' xmlns:rds="http://www.ibm.com/xmlns/prod/cognos/rds/types/201310"','' -replace 'rds:','' -replace '<','%3C' -replace '>','%3E' -replace '/','%2F'
+                $promptXML = [xml]((Get-Content "$($reportID).xml") -replace ' xmlns:rds="http://www.ibm.com/xmlns/prod/cognos/rds/types/201310"','' -replace 'rds:','')
+                $downloadURL = $downloadURL + '&xmlData=' + $reportParamXML
+            }
+
+            if ($promptXML) {
+                Write-Host "Info: You can customize your prompts by changing any of the following fields and using the -reportparams parameter."
+                $promptXML.promptAnswers.promptValues | ForEach-Object {
+                    $promptname = $PSItem.name
+                    $PSItem.values.item.SimplePValue.useValue | ForEach-Object {
+                        Write-Host ("&p_$($promptname)=$($PSItem)").Trim() -NoNewline
+                    }
+                }
+                Write-Host "`n"
+            }
+
+        } catch {}
+
+        Write-Host "Downloading Report to ""$($fullfilepath)""... " -ForegroundColor Yellow
+        $response5 = Invoke-RestMethod -Uri $downloadURL -WebSession $session
+
+        if ($response5.receipt.status -eq "working") {
+
+            #At this point we have our conversationID that we can use to query for if the report is done or not. If it is still running it will return a response with reciept.status = working.
+            $response6 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response5.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+
+            if ($response6.error) { #This would indicate a generic failure or a prompt failure.
+                $errorResponse = $response6.error
+                Write-Host "Error detected in downloaded file. $($errorResponse.message)" -ForegroundColor Red
+
+                if ($errorResponse.promptID) {
+                    $promptid = $errorResponse.promptID
+                    #Expecting prompts. Lets see if we can find them.
+                    $promptsConversation = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/reportPrompts/report/$($reportID)?v=3&async=MANUAL" -WebSession $session
+                    $prompts = Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($promptsConversation.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                    Write-Host "`nError: This report expects the following prompts:" -ForegroundColor RED
+
+                    Select-Xml -Xml ([xml]$prompts.Content) -XPath '//x:pname' -Namespace @{ x = "http://www.ibm.com/xmlns/prod/cognos/layoutData/201310" } | ForEach-Object {
+                        
+                        $promptname = $PSItem.Node.'#text'
+                        Write-Host "p_$($promptname)="
+
+                        if (Select-Xml -Xml ([xml]$prompts.Content) -XPath '//x:p_value' -Namespace @{ x = "http://www.ibm.com/xmlns/prod/cognos/layoutData/200904" }) {
+                            $promptvalues = Select-Xml -Xml ([xml]$prompts.Content) -XPath '//x:p_value' -Namespace @{ x = "http://www.ibm.com/xmlns/prod/cognos/layoutData/200904" } | Where-Object { $PSItem.Node.pname -eq $promptname }
+                            if ($promptvalues.Node.selOptions.sval) {
+                                $promptvalues.Node.selOptions.sval
+                            }
+                        }
+
+                    }
+
+                    Write-Host "Info: If you want to save prompts please run the script again with the -SavePrompts switch."
+
+                    if ($SavePrompts) {
+                        
+                        Write-Host "`nInfo: For complex prompts you can submit your prompts at the following URL. You must have a browser window open and signed into Cognos for this URL to work." -ForegroundColor Yellow
+                        Write-Host ("$($baseURL)" + ([uri]$errorResponse.url).PathAndQuery) + "`n"
+                        
+                        $promptAnswers = Read-Host -Prompt "After you have followed the link above and finish the prompts, would you like to download the responses for later use? (y/n)"
+
+                        if (@('Y','y') -contains $promptAnswers) {
+                            Write-Host "Info: Saving Report Responses to $($reportID).xml to be used later." -ForegroundColor Yellow
+                            Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/promptAnswers/conversationID/$($promptid)?v=3&async=OFF" -WebSession $session -OutFile "$($reportID).xml"
+                            Write-Host "Info: You will need to rerun this script to download the report using the saved prompts." -ForegroundColor Yellow
+
+                            $promptXML = [xml]((Get-Content "$($reportID).xml") -replace ' xmlns:rds="http://www.ibm.com/xmlns/prod/cognos/rds/types/201310"','' -replace 'rds:','')
+                            $promptXML.promptAnswers.promptValues | ForEach-Object {
+                                $promptname = $PSItem.name
+                                $PSItem.values.item.SimplePValue.useValue | ForEach-Object {
+                                    Write-Host "&p_$($promptname)=$($PSItem)"
+                                }
+                            }
+                            
+                        }
+                    }
+                }
+
+                #Move-Item -Path "$fullfilepath" -Destination "$($fullfilepath).error" -Force
+                #Reset-DownloadedFile($fullfilepath) #we aren't downloading the file with the error code.
+                exit(6)
+
+            } elseif ($response6.receipt) { #task is still in a working status
+                
+                Write-Host "Info: Report is still working."
+                do {
+                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response5.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+
+                    if ($response7.receipt.status -eq "working") {
+                        Write-Host '.' -NoNewline
+                        Start-Sleep -Seconds 5
+                    }
+                } until ($response7.receipt.status -ne "working")
+
+                $response7 | Out-File $fullfilepath
+
+            } else {
+                #we did not get a prompt page or an error so we should be able to output to disk.
+                $response6 | Out-File $fullfilepath
+            }
+        }
+        
+        Write-Host "Success." -ForegroundColor Yellow -NoNewline
+    } catch {
+        Write-Host "Failed to download file. $($_)" -ForegroundColor Red
+        exit(6)
+    }
+} else {
+    #Just showing report details. No reason to continue.
+    Write-Host "Skip downloading file specified. Exiting..." -ForegroundColor Yellow
+    exit(0)
+}
+
+
+# check file for proper format if csv
+if ($extension -eq "csv") {
+    $FileExists = Test-Path $fullfilepath
+    if ($FileExists -eq $False) {
+        Write-Host("Does not exist:" + $fullfilepath)
+        Send-Email("[Failure][Output]","CSV Did not download to expected path.")
+        exit(7) #CSV file didn't download to expected path
+    }
+    
+    try {
+        $filecontents = Import-CSV $fullfilepath
+
+        $headercount = ($filecontents | Get-Member | Where-Object { $PSItem.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name | Measure-Object).Count
+        if ($headercount -gt 1) {
+            Write-Host("Passed CSV header check with $headercount headers...") -ForeGroundColor Yellow
+        } else {
+            Write-Host("Failed CSV header check with only $headercount headers...") -ForeGroundColor Yellow
+            Reset-DownloadedFile($fullfilepath)
+            Send-Email("[Failure][Verify]","Only $headercount header found in CSV.")
+            exit(8)
+        }
+
+        $linecount = ($filecontents | Measure-Object).Count
+        if ($linecount -ge $requiredlinecount) { #Think schools.csv for smaller districts with only 3 campuses.
+            Write-Host("Passed CSV line count with $linecount lines...") -ForeGroundColor Yellow
+        } else {
+            Write-Host("Failed CSV line count with only $linecount lines...") -ForeGroundColor Yellow
+            Reset-DownloadedFile($fullfilepath)
+            Send-Email("[Failure][Verify]","Only $linecount lines found in CSV.")
+            exit(9)
+        }
+
+    } catch {
+        Send-Email("[Failure][Verify]")
+        Reset-DownloadedFile($fullfilepath)
+        exit (13) #General Verification Failure
     }
 }
 
 #need a valid exit here so this script can be put into a loop in case a file fails to download on first try
-exit
+exit(0)
