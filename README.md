@@ -2,7 +2,9 @@
 
 
 ## Suggested Install Process
-> This install process is recommended so you can easily update to newer versions. You can download git at https://git-scm.com/download/win. You do not have to use this installation method as you can download the raw file and save it where you want.
+> This install process is recommended so you can easily update to newer versions. You can download git at https://git-scm.com/download/win.
+
+> **Note:** You do not have to use this installation method as you can download the raw file and save it where you want.
 ````
 mkdir \Scripts
 cd \Scripts
@@ -32,15 +34,15 @@ Get-Help .\CognosDownload.ps1
 Get-Help .\CognosDownload.ps1 -Examples
 ````
 
-## Sample Command Lines
+## Sample Command Line
 > Basic Syntax
 ````
-.\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report students -cognosfolder automation -savepath c:\scripts\clever\files
+.\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report "Active Students" -savepath "c:\scripts\clever\files"
 ````
 
 > Show Details of the above Report without Downloading
 ````
-.\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report students -cognosfolder automation -savepath c:\scripts\clever\files -ShowReportDetails -SkipDownloadingFile
+.\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report "Active Students" -savepath "c:\scripts\clever\files" -ShowReportDetails -SkipDownloadingFile
 ````
 
 ## SSO Password Change
