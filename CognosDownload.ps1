@@ -23,7 +23,9 @@
   PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report activities -cognosfolder "_Share Temporarily Between Districts/Gentry/automation" -TeamContent
 
   .EXAMPLE
-  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report "APSCN Virtual AR Student File" -savepath .\ -ShowReportDetails -TeamContent -cognosfolder "Demographics/Demographic Download Files" -XMLParameters i4C884862DFD8470ABFF2571CB47F01EA.xml -extension pdf
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report "APSCN Virtual AR Student File" -savepath .\ -TeamContent -cognosfolder "Demographics/Demographic Download Files" -SavePrompts
+  PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report "APSCN Virtual AR Student File" -savepath .\ -ShowReportDetails -TeamContent -cognosfolder "Demographics/Demographic Download Files" -XMLParameters i4C884862DFD8470ABFF2571CB47F01EA.xml -extension pdf 
+  For reports with complex paramters you can capture and save the prompts for reuse by specifying the -SavePrompts paramter.
 
   .EXAMPLE
   PS> .\CognosDownload.ps1 -username 0401cmillsap -espdsn gentrysms -report students -SendMail -mailto "technology@gentrypioneers.com" -mailfrom noreply@gentrypioneers.com
@@ -48,15 +50,15 @@ Param(
     [parameter(Position=2,Mandatory=$false,HelpMessage="Format you want to download report as.")]
         [string]$extension="CSV",
     [parameter(Mandatory=$false,HelpMessage="eSchool SSO username to use.")]
-        [string]$username="0000name", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED YET BUT WILL BE IN THE FUTURE.
+        [string]$username="0000name", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED YET BUT WILL BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="File for ADE SSO Password")]
         [string]$passwordfile="C:\Scripts\apscnpw.txt", # Override where the script should find the password for the user specified with -username.
     [parameter(Mandatory=$false,HelpMessage="eSchool DSN location.")]
-        [string]$espdsn="schoolsms", #YOU SHOULD NOT MODIFY THIS. USER THE PARAMETER. FOR BACKWARDS COMPATIBILITY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE.
+        [string]$espdsn="schoolsms", #YOU SHOULD NOT MODIFY THIS. USER THE PARAMETER. FOR BACKWARDS COMPATIBILITY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="eFinance username to use.")]
-        [string]$efpuser="yourefinanceusername", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE.
+        [string]$efpuser="yourefinanceusername", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="eFinance DSN location.")]
-        [string]$efpdsn="schoolfms", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE.
+        [string]$efpdsn="schoolfms", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="Cognos Folder Structure.")]
         [string]$cognosfolder="My Folders", #Cognos Folder "Folder 1/Sub Folder 2/Sub Folder 3" NO TRAILING SLASH
     [parameter(Mandatory=$false,HelpMessage="Report Parameters")]
