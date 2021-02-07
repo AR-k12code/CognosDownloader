@@ -10,7 +10,7 @@
 mkdir \Scripts
 cd \Scripts
 git clone https://github.com/AR-k12code/CognosDownloader.git
-New-Item -Path C:\scripts\CognosDownload-New.ps1 -ItemType SymbolicLink -Value C:\scripts\CognosDownloader\CognosDownload.ps1 -Force
+New-Item -Path C:\scripts\CognosDownload.ps1 -ItemType SymbolicLink -Value C:\scripts\CognosDownloader\CognosDownload.ps1 -Force
 ````
 
 ## To download latest updates
