@@ -1,6 +1,8 @@
 #Get-Help .\CognosDownload.ps1
 #Get-Help .\CognosDownload.ps1 -Examples
 
+#This version is NOT complete. Please check back over the next few weeks for updates!
+
 <#
   .SYNOPSIS
   This script is used to download reports from the Arkansas Cognos 11 using your SSO credentails.
@@ -92,7 +94,13 @@ Param(
     [parameter(Mandatory=$false)]
         [string]$XMLParameters, #Path to XML for answering prompts.
     [parameter(Mandatory=$false)]
-        [switch]$SavePrompts
+        [switch]$SavePrompts,
+    [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
+        [switch]$RunReport,
+    [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
+        [string]$reportwait,
+    [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
+        [switch]$ReportStudio
 )
 
 Add-Type -AssemblyName System.Web
@@ -233,23 +241,15 @@ If ($FileExists -eq $True) {
     $filetimestamp = (Get-Item $fullfilepath).LastWriteTime
 }
 
-#submit login.
+#submit login and switch to site.
 try {
-    Write-Host -NoNewline "Attempting authentication... " -ForegroundColor Yellow
-    $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session -Method 'GET' -Credential $creds #-ErrorAction Ignore -SkipHttpErrorCheck
-    Write-Host "Success." -ForegroundColor Yellow
-} catch {
-    Write-Host "Unable to authenticate." -ForegroundColor Red
-    exit(1)
-}
-
-#switch to site.
-try {
-    Write-Host -NoNewline "Attempting switch into $dsnname... " -ForegroundColor Yellow
-    $response2 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -WebSession $session `
+    Write-Host "Authenticating and switching to $dsnname... " -ForegroundColor Yellow -NoNewline
+    $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session `
     -Method "POST" `
     -ContentType "application/json; charset=UTF-8" `
-    -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}"
+    -Credential $creds `
+    -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}" 
+
     Write-Host "Success." -ForegroundColor Yellow
 } catch {
     Write-Host "Unable to switch into $dsnname." -ForegroundColor Red
@@ -269,14 +269,14 @@ if ($cognosfolder -eq "My Folders") {
 
 #Get the Atom feed
 try {
-    Write-Host -NoNewline "Attempting to retrieve report details for $($report)... " -ForegroundColor Yellow
+    Write-Host "Attempting to retrieve report details for $($report)... " -ForegroundColor Yellow -NoNewline
     $response3 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/atom/path/$($cognosfolder)/$($report)" -WebSession $session
     $reportDetails = $response3.feed
     $reportID = $reportDetails.entry.storeID
     Write-Host "Success." -ForegroundColor Yellow
     
 } catch {
-    Write-Host "Unable to retrieve report details. Please check the supplied report name and cognosfolder." -ForegroundColor Red
+    Write-Host "Unable to retrieve report details. Please check the supplied report name and cognosfolder. $($_)" -ForegroundColor Red
     exit(3)
 }
 
@@ -284,7 +284,7 @@ try {
 try {
     Write-Host -NoNewline "Retrieving possible formats... " -ForegroundColor Yellow
     $response4 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormats/path/$($cognosfolder)/$($report)" -WebSession $session
-    Write-Host "Success." -ForegroundColor Yellow
+    Write-Host "Success." -ForegroundColor Yellow -NoNewline
 
     if ($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) {
         Write-Host " - $($report) ($($reportID)) can be exported in the following formats:" $($($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) -join ',') -ForegroundColor Yellow
@@ -325,7 +325,7 @@ if (-Not($SkipDownloadingFile)) {
                 Remove-Item -Path ($fullfilepath + ".old")
             }
             try {
-                Write-Host -NoNewline "Renaming old $report... " -ForeGroundColor Yellow
+                Write-Host "Renaming old $report... " -ForeGroundColor Yellow -NoNewline
                 Rename-Item -Path $fullfilepath -newname ($fullfilepath + ".old")
                 Write-Host "Success." -ForegroundColor Yellow
             } catch {
@@ -371,7 +371,7 @@ if (-Not($SkipDownloadingFile)) {
 
         } catch {}
 
-        Write-Host "Downloading Report to ""$($fullfilepath)""... " -ForegroundColor Yellow
+        Write-Host "Downloading Report to ""$($fullfilepath)""... " -ForegroundColor Yellow -NoNewline
         $response5 = Invoke-RestMethod -Uri $downloadURL -WebSession $session
 
         if ($response5.receipt.status -eq "working") {
@@ -454,7 +454,7 @@ if (-Not($SkipDownloadingFile)) {
             }
         }
         
-        Write-Host "Success." -ForegroundColor Yellow -NoNewline
+        Write-Host "Success." -ForegroundColor Yellow
     } catch {
         Write-Host "Failed to download file. $($_)" -ForegroundColor Red
         exit(6)
