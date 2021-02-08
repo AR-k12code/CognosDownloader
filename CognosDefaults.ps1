@@ -5,4 +5,4 @@
 #$passwordfile = 'c:\scripts\mysavedpassword.txt'
 #$espdsn = 'schoolsms'
 #$savepath = 'c:\scripts\files'
-#efpdsn = 'schoolfms'
+#$efpdsn = 'schoolfms'
