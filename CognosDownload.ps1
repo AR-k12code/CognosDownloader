@@ -261,7 +261,11 @@ if ($cognosfolder -eq "My Folders") {
     #$cognosfolder = ([System.Web.HttpUtility]::UrlEncode("My Folders")).Replace('+','%20')
     $cognosfolder = "$($camid)/My Folders".Replace(' ','%20')
 } elseif ($TeamContent) {
-    $cognosfolder = "Team Content/Student Management System/$($cognosfolder)".Replace(' ','%20')
+    if ($eFinance) {
+        $cognosfolder = "Team Content/Financial Management System/$($cognosfolder)".Replace(' ','%20')
+    } else {
+        $cognosfolder = "Team Content/Student Management System/$($cognosfolder)".Replace(' ','%20')
+    }
 } else {
     #$cognosfolder = ([System.Web.HttpUtility]::UrlEncode("My Folders/$($cognosfolder)")).Replace('+','%20')
     $cognosfolder = "$($camid)/My Folders/$($cognosfolder)".Replace(' ','%20')
