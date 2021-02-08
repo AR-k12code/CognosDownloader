@@ -6,3 +6,4 @@
 #$espdsn = 'schoolsms'
 #$savepath = 'c:\scripts\files'
 #$efpdsn = 'schoolfms'
+#$efpuser = 'efinanceusername'
