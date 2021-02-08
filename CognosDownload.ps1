@@ -98,7 +98,7 @@ Param(
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$RunReport,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
-        [string]$reportwait,
+        [int]$reportwait,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$ReportStudio
 )
