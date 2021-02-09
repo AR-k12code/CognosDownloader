@@ -107,6 +107,8 @@ Param(
         [switch]$SavePrompts,
     [parameter(Mandatory=$false)]
         [string]$Encoding="utf8",
+    [parameter(Mandatory=$false)]
+        [switch]$DisableCSVVerification,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$RunReport,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
@@ -193,6 +195,8 @@ function Reset-DownloadedFile([string]$fullfilepath) {
         Write-Host -NoNewline "Deleting old $report..." -ForeGroundColor Yellow
         Remove-Item -Path $fullfilepath -Force -ErrorAction SilentlyContinue
         Rename-Item -Path ($fullfilepath + ".old") -newname ($fullfilepath)
+    } else {
+        Remove-Item -Path $fullfilepath -Force -ErrorAction SilentlyContinue
     }
     Write-Host "Reversing old $($report)." -ForeGroundColor Red
 }
@@ -496,41 +500,44 @@ if (-Not($SkipDownloadingFile)) {
 }
 
 # check file for proper format if csv
-if ($extension -eq "csv") {
-    $FileExists = Test-Path $fullfilepath
-    if ($FileExists -eq $False) {
-        Write-Host("Does not exist:" + $fullfilepath)
-        Send-Email("[Failure][Output]","CSV Did not download to expected path.")
-        exit(7) #CSV file didn't download to expected path
-    }
-    
-    try {
-        $filecontents = Import-CSV $fullfilepath
-
-        $headercount = ($filecontents | Get-Member | Where-Object { $PSItem.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name | Measure-Object).Count
-        if ($headercount -gt 1) {
-            Write-Host("Passed CSV header check with $headercount headers...") -ForeGroundColor Yellow
-        } else {
-            Write-Host("Failed CSV header check with only $headercount headers...") -ForeGroundColor Yellow
-            Reset-DownloadedFile($fullfilepath)
-            Send-Email("[Failure][Verify]","Only $headercount header found in CSV.")
-            exit(8)
+if (-Not($DisableCSVVerification)) {
+    if ($extension -eq "csv") {
+        $FileExists = Test-Path $fullfilepath
+        if ($FileExists -eq $False) {
+            Write-Host("Does not exist:" + $fullfilepath)
+            Send-Email("[Failure][Output]","CSV Did not download to expected path.")
+            exit(7) #CSV file didn't download to expected path
         }
+        
+        try {
+            $filecontents = Import-CSV $fullfilepath
 
-        $linecount = ($filecontents | Measure-Object).Count
-        if ($linecount -ge $requiredlinecount) { #Think schools.csv for smaller districts with only 3 campuses.
-            Write-Host("Passed CSV line count with $linecount lines...") -ForeGroundColor Yellow
-        } else {
-            Write-Host("Failed CSV line count with only $linecount lines...") -ForeGroundColor Yellow
+            $headercount = ($filecontents | Get-Member | Where-Object { $PSItem.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name | Measure-Object).Count
+            if ($headercount -gt 1) {
+                Write-Host("Passed CSV header check with $headercount headers...") -ForeGroundColor Yellow
+            } else {
+                Write-Host("Failed CSV header check with only $headercount headers...") -ForeGroundColor Yellow
+                Reset-DownloadedFile($fullfilepath)
+                Send-Email("[Failure][Verify]","Only $headercount header found in CSV.")
+                exit(8)
+            }
+
+            $linecount = ($filecontents | Measure-Object).Count
+            if ($linecount -ge $requiredlinecount) { #Think schools.csv for smaller districts with only 3 campuses.
+                Write-Host("Passed CSV line count with $linecount lines...") -ForeGroundColor Yellow
+            } else {
+                Write-Host("Failed CSV line count with only $linecount lines...") -ForeGroundColor Yellow
+                Reset-DownloadedFile($fullfilepath)
+                Send-Email("[Failure][Verify]","Only $linecount lines found in CSV.")
+                exit(9)
+            }
+
+        } catch {
+            Write-Host "Error: Unable to verify CSV file. $($_)"
+            Send-Email("[Failure][Verify]","$_")
             Reset-DownloadedFile($fullfilepath)
-            Send-Email("[Failure][Verify]","Only $linecount lines found in CSV.")
-            exit(9)
+            exit(10) #General Verification Failure
         }
-
-    } catch {
-        Send-Email("[Failure][Verify]")
-        Reset-DownloadedFile($fullfilepath)
-        exit(10) #General Verification Failure
     }
 }
 
