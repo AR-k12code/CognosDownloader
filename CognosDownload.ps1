@@ -117,7 +117,7 @@ Param(
         [switch]$ReportStudio
 )
 
-$version = [version]"21.02.09"
+$version = [version]"21.02.09.02"
 
 Add-Type -AssemblyName System.Web
 

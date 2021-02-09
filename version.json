@@ -1,4 +1,4 @@
 {
-  "version": "21.02.09",
+  "version": "21.02.09.02",
   "description": "This update includes version checks, file encoding output, fixes for sending emails on errors, additional examples in CognosDefaults.ps1"
 }
