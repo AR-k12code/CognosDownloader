@@ -115,6 +115,8 @@ Param(
         [switch]$ReportStudio
 )
 
+$version = [version]"21.02.09"
+
 Add-Type -AssemblyName System.Web
 
 #powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -espdns schoolsms -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" 
@@ -146,6 +148,15 @@ $currentPath=(Split-Path ((Get-Variable MyInvocation -Scope 0).Value).MyCommand.
 if (Test-Path $currentPath\CognosDefaults.ps1) {
     . $currentPath\CognosDefaults.ps1
 }
+
+#version check, continue or failure.
+try {
+    $versioncheck = Invoke-RestMethod -Uri 'https://www.github.com/AR-K12code/CognosDownloader/master/version.json'
+    if ($version -lt [version]($versioncheck.version)) {
+        Write-Host "`r`nInfo: There is a new version of this script available at https://www.github.com/AR-K12code/CognosDownloader"
+        Write-Host "Info: Version $($versioncheck.version) is available. Description: $($versioncheck.description)`r`n"
+    }
+} catch {} #Do and show nothing if we don't get a response.
 
 #send mail on failure.
 $mailsubject = "[CognosDownloader]"
