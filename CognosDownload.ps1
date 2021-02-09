@@ -1,7 +1,17 @@
 #Get-Help .\CognosDownload.ps1
 #Get-Help .\CognosDownload.ps1 -Examples
+#  ___ _____ ___  ___   ___   ___    _  _  ___ _____         
+# / __|_   _/ _ \| _ \ |   \ / _ \  | \| |/ _ \_   _|        
+# \__ \ | || (_) |  _/ | |) | (_) | | .` | (_) || |          
+# |___/_|_|_\___/|_|   |___/ \___/__|_|\_|\___/ |_|
 
-#This version is NOT complete. Please check back over the next few weeks for updates!
+#  ___ ___ ___ _____   _____ _  _ ___ ___   ___ ___ _    ___ 
+# | __|   \_ _|_   _| |_   _| || |_ _/ __| | __|_ _| |  | __|
+# | _|| |) | |  | |     | | | __ || |\__ \ | _| | || |__| _| 
+# |___|___/___| |_|     |_| |_||_|___|___/ |_| |___|____|___|
+#                                                           
+# Please see the https://www.github.com/AR-K12code/CognosDownload to see how to use the CognosDefaults.ps1 file.
+# This version is NOT complete. Please check back over the next few weeks for updates!
 
 <#
   .SYNOPSIS
@@ -95,6 +105,8 @@ Param(
         [string]$XMLParameters, #Path to XML for answering prompts.
     [parameter(Mandatory=$false)]
         [switch]$SavePrompts,
+    [parameter(Mandatory=$false)]
+        [string]$Encoding="utf8",
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$RunReport,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
@@ -105,7 +117,7 @@ Param(
 
 Add-Type -AssemblyName System.Web
 
-#powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" -espdns schoolsms 
+#powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -espdns schoolsms -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" 
 
 # When the password expires, just delete the specific file (c:\scripts\apscnpw.txt) and run the script to re-create.
 
@@ -159,7 +171,7 @@ function Send-Email([string]$failurereason,[string]$errormessage) {
             $smtp.send($msg)
         } catch {
             Write-Host("Failed to send email: $_") -ForeGroundColor Red
-            exit 30
+            exit(30)
         }
     }
 }
@@ -227,8 +239,8 @@ $fullfilepath = "$savepath\$report.$extension"
 
 If (!(Test-Path ($savepath))) {
     Write-Host("Specified save folder does not exist! [$fullfilepath]") -ForeGroundColor Yellow
-    Send-Email("[Failure][Save Path Missing]")
-    exit 1 #specified save folder does not exist
+    Send-Email("[Failure][Save Path Missing]","Missing path $fullfilepath")
+    exit(1) #specified save folder does not exist
 }
 
 if(!(Split-Path -parent $savepath) -or !(Test-Path -pathType Container (Split-Path -parent $savepath))) {
@@ -252,7 +264,8 @@ try {
 
     Write-Host "Success." -ForegroundColor Yellow
 } catch {
-    Write-Host "Unable to switch into $dsnname." -ForegroundColor Red
+    Write-Host "Unable to authenticate and switch into $dsnname. $($_)" -ForegroundColor Red
+    Send-Email("[Failure][Authentication]","$($_)")
     exit(2)
 }
 
@@ -274,39 +287,41 @@ if ($cognosfolder -eq "My Folders") {
 #Get the Atom feed
 try {
     Write-Host "Attempting to retrieve report details for $($report)... " -ForegroundColor Yellow -NoNewline
-    $response3 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/atom/path/$($cognosfolder)/$($report)" -WebSession $session
-    $reportDetails = $response3.feed
+    $response2 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/atom/path/$($cognosfolder)/$($report)" -WebSession $session
+    $reportDetails = $response2.feed
     $reportID = $reportDetails.entry.storeID
     Write-Host "Success." -ForegroundColor Yellow
     
 } catch {
     Write-Host "Unable to retrieve report details. Please check the supplied report name and cognosfolder. $($_)" -ForegroundColor Red
+    Send-Email("[Failure][Missing Path]","$($_)")
     exit(3)
 }
 
 #Get the possible outputformats.
 try {
     Write-Host -NoNewline "Retrieving possible formats... " -ForegroundColor Yellow
-    $response4 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormats/path/$($cognosfolder)/$($report)" -WebSession $session
+    $response3 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormats/path/$($cognosfolder)/$($report)" -WebSession $session
     Write-Host "Success." -ForegroundColor Yellow -NoNewline
 
-    if ($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) {
-        Write-Host " - $($report) ($($reportID)) can be exported in the following formats:" $($($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) -join ',') -ForegroundColor Yellow
+    if ($response3.GetOutputFormatsResponse.supportedFormats.outputFormatName) {
+        Write-Host " - $($report) ($($reportID)) can be exported in the following formats:" $($($response3.GetOutputFormatsResponse.supportedFormats.outputFormatName) -join ',') -ForegroundColor Yellow
     
         #This is case sensitive. So we need to retrieve the value from the response and match to the possible incorrect case provided to script.
-        if ($($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName) -contains $fileformat) {
-            $possibleFormats = $($response4.GetOutputFormatsResponse.supportedFormats.outputFormatName)
+        if ($($response3.GetOutputFormatsResponse.supportedFormats.outputFormatName) -contains $fileformat) {
+            $possibleFormats = $($response3.GetOutputFormatsResponse.supportedFormats.outputFormatName)
             $validExtension = $possibleFormats[$($possibleFormats.ToLower().IndexOf($fileformat.ToLower()))]
         } else {
             Write-Host "You have requested an invalid extension type for this report."
             Throw "Invalid extension requested."
         }
     } else {
-        Write-Host "Failed to retrieve output formats for the supplied report." -ForegroundColor Red
+        throw
     }
 
 } catch {
-    Write-Host "Failed to retrieve output formats for the supplied report." -ForegroundColor Red
+    Write-Host "Failed to retrieve output formats for the supplied report. $($_)" -ForegroundColor Red
+    Send-Email("[Failure][Report Details Missing]","$($_)")
     exit(4)
 }
 
@@ -337,7 +352,7 @@ if (-Not($SkipDownloadingFile)) {
             }
         }
 
-        $downloadURL = "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormat/path/$($cognosfolder)/$($report)/$($validExtension)?v=3&async=MANUAL&useRelativeURL=true"
+        $downloadURL = "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormat/path/$($cognosfolder)/$($report)/$($validExtension)?v=3&async=MANUAL"
         
         #https://www.ibm.com/support/knowledgecenter/SSEP7J_11.1.0/com.ibm.swg.ba.cognos.ca_dg_cms.doc/c_dg_raas_run_rep_prmpt.html#dg_raas_run_rep_prmpt
         #I think this should be a path as well to the xmlData so you can save it to a text file and pull in when needed to run.
@@ -370,21 +385,21 @@ if (-Not($SkipDownloadingFile)) {
                         Write-Host ("&p_$($promptname)=$($PSItem)").Trim() -NoNewline
                     }
                 }
-                Write-Host "`n"
+                Write-Host "`r`n"
             }
 
         } catch {}
 
         Write-Host "Downloading Report to ""$($fullfilepath)""... " -ForegroundColor Yellow -NoNewline
-        $response5 = Invoke-RestMethod -Uri $downloadURL -WebSession $session
+        $response4 = Invoke-RestMethod -Uri $downloadURL -WebSession $session
 
-        if ($response5.receipt.status -eq "working") {
+        if ($response4.receipt.status -eq "working") {
 
             #At this point we have our conversationID that we can use to query for if the report is done or not. If it is still running it will return a response with reciept.status = working.
-            $response6 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response5.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+            $response5 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
 
-            if ($response6.error) { #This would indicate a generic failure or a prompt failure.
-                $errorResponse = $response6.error
+            if ($response5.error) { #This would indicate a generic failure or a prompt failure.
+                $errorResponse = $response5.error
                 Write-Host "Error detected in downloaded file. $($errorResponse.message)" -ForegroundColor Red
 
                 if ($errorResponse.promptID) {
@@ -392,7 +407,7 @@ if (-Not($SkipDownloadingFile)) {
                     #Expecting prompts. Lets see if we can find them.
                     $promptsConversation = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/reportPrompts/report/$($reportID)?v=3&async=MANUAL" -WebSession $session
                     $prompts = Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($promptsConversation.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
-                    Write-Host "`nError: This report expects the following prompts:" -ForegroundColor RED
+                    Write-Host "`r`nError: This report expects the following prompts:" -ForegroundColor RED
 
                     Select-Xml -Xml ([xml]$prompts.Content) -XPath '//x:pname' -Namespace @{ x = "http://www.ibm.com/xmlns/prod/cognos/layoutData/201310" } | ForEach-Object {
                         
@@ -412,8 +427,8 @@ if (-Not($SkipDownloadingFile)) {
 
                     if ($SavePrompts) {
                         
-                        Write-Host "`nInfo: For complex prompts you can submit your prompts at the following URL. You must have a browser window open and signed into Cognos for this URL to work." -ForegroundColor Yellow
-                        Write-Host ("$($baseURL)" + ([uri]$errorResponse.url).PathAndQuery) + "`n"
+                        Write-Host "`r`nInfo: For complex prompts you can submit your prompts at the following URL. You must have a browser window open and signed into Cognos for this URL to work." -ForegroundColor Yellow
+                        Write-Host ("$($baseURL)" + ([uri]$errorResponse.url).PathAndQuery) + "`r`n"
                         
                         $promptAnswers = Read-Host -Prompt "After you have followed the link above and finish the prompts, would you like to download the responses for later use? (y/n)"
 
@@ -434,15 +449,14 @@ if (-Not($SkipDownloadingFile)) {
                     }
                 }
 
-                #Move-Item -Path "$fullfilepath" -Destination "$($fullfilepath).error" -Force
-                #Reset-DownloadedFile($fullfilepath) #we aren't downloading the file with the error code.
-                exit(6)
+                Send-Email("[Failure][Prompts]","Report $report requires prompts to run properly.")
+                exit(5)
 
-            } elseif ($response6.receipt) { #task is still in a working status
+            } elseif ($response5.receipt) { #task is still in a working status
                 
-                Write-Host "Info: Report is still working."
+                Write-Host "`r`nInfo: Report is still working."
                 do {
-                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response5.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
 
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
@@ -450,17 +464,18 @@ if (-Not($SkipDownloadingFile)) {
                     }
                 } until ($response7.receipt.status -ne "working")
 
-                $response7 | Out-File $fullfilepath
+                $response7 | Out-File $fullfilepath -Encoding $Encoding
 
             } else {
                 #we did not get a prompt page or an error so we should be able to output to disk.
-                $response6 | Out-File $fullfilepath
+                $response5 | Out-File $fullfilepath -Encoding $Encoding
             }
         }
         
         Write-Host "Success." -ForegroundColor Yellow
     } catch {
         Write-Host "Failed to download file. $($_)" -ForegroundColor Red
+        Send-Email("[Failure][Download Failed]","Failed to download file. $($_)")
         exit(6)
     }
 } else {
@@ -468,7 +483,6 @@ if (-Not($SkipDownloadingFile)) {
     Write-Host "Skip downloading file specified. Exiting..." -ForegroundColor Yellow
     exit(0)
 }
-
 
 # check file for proper format if csv
 if ($extension -eq "csv") {
@@ -505,7 +519,7 @@ if ($extension -eq "csv") {
     } catch {
         Send-Email("[Failure][Verify]")
         Reset-DownloadedFile($fullfilepath)
-        exit (13) #General Verification Failure
+        exit(10) #General Verification Failure
     }
 }
 
