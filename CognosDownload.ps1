@@ -119,7 +119,7 @@ Param(
         [switch]$ReportStudio
 )
 
-$version = [version]"21.02.09.02"
+$version = [version]"21.02.10"
 
 Add-Type -AssemblyName System.Web
 
@@ -484,6 +484,7 @@ if (-Not($SkipDownloadingFile)) {
     } catch {
         Write-Host "Failed to download file. $($_)" -ForegroundColor Red
         Send-Email("[Failure][Download Failed]","Failed to download file. $($_)")
+        Reset-DownloadedFile($fullfilepath)
         exit(6)
     }
 } else {

@@ -1,8 +1,12 @@
 {
-  "version": "21.02.09.02",
-  "description": "This update includes version checks, file encoding output, fixes for sending emails on errors, additional examples in CognosDefaults.ps1",
+  "version": "21.02.10",
+  "description": "Fix for reverting file after timeout on download.",
 
   "versions": [
+    {
+      "version": "21.02.09.02",
+      "description": "This update includes version checks, file encoding output, fixes for sending emails on errors, additional examples in CognosDefaults.ps1"
+    },
     {
       "version": "21.02.04",
       "description": "Craig Millsap - Cognos Analytics 11 upgrade. Saving complex prompts, waiting for report to complete, and validation error messages."
