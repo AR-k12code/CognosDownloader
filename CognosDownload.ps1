@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 #Get-Help .\CognosDownload.ps1
 #Get-Help .\CognosDownload.ps1 -Examples
 #  ___ _____ ___  ___   ___   ___    _  _  ___ _____         
