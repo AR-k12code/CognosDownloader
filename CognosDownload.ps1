@@ -3,7 +3,7 @@
 #  ___ _____ ___  ___   ___   ___    _  _  ___ _____         
 # / __|_   _/ _ \| _ \ |   \ / _ \  | \| |/ _ \_   _|        
 # \__ \ | || (_) |  _/ | |) | (_) | | .` | (_) || |          
-# |___/_|_|_\___/|_|   |___/ \___/__|_|\_|\___/ |_|
+# |___/ |_| \___/|_|   |___/ \___/  |_|\_|\___/ |_|
 
 #  ___ ___ ___ _____   _____ _  _ ___ ___   ___ ___ _    ___ 
 # | __|   \_ _|_   _| |_   _| || |_ _/ __| | __|_ _| |  | __|
@@ -11,7 +11,9 @@
 # |___|___/___| |_|     |_| |_||_|___|___/ |_| |___|____|___|
 #                                                           
 # Please see the https://www.github.com/AR-K12code/CognosDownload to see how to use the CognosDefaults.ps1 file.
+
 # This version is NOT complete. Please check back over the next few weeks for updates!
+# Script Contributors - Brian Johnson, Charlie Weber, Scott Organ, Joshua Reed, and Craig Millsap.
 
 <#
   .SYNOPSIS
@@ -124,22 +126,6 @@ Add-Type -AssemblyName System.Web
 #powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -espdns schoolsms -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" 
 
 # When the password expires, just delete the specific file (c:\scripts\apscnpw.txt) and run the script to re-create.
-
-# Revisions:
-# 2014-07-23: Brian Johnson: Updated URL string to include dsn parameters necessary for eSchool and re-enabled CredentialCache setting to login
-# 2016-04-06: Added new username parameter efpuser for eFinance to work
-# 2017-01-16: Brian Johnson: Updated URL from cognosisapi.dll to cognos.cgi. Also included previous changes that were not uploaded from before.
-# 2017-02-07: Added CSV verify and revert
-# 2017-02-27: Added variable for reporttype
-# 2017-07-12: VBSDbjohnson: Merged past changes with CWeber42 version
-# 2017-07-13: VBSDbjohnson: Changed to use Powershell parameters instead of args. Script should also be able to run without modifying file
-# 2018-04-26: (reverted) scottorgan: Nested folder support Usage examples: CognosDownload.ps1 Clever\Entollments ; CognosDownload.ps1 "Other Reports\MAP Roster"
-# 2018-04-26: (reverted) BPSDJreed: Email notification for expired password
-# 2018-04-24: Craig Millsap: Added recursive nested folders, email notifications, waiting for report to generate.
-# 2020-11-19: Craig Millsap: Major overhaul for Cognos11 upgrade. Working eSchool Plus. eFinance is not working yet.
-# 2020-12-01: Craig Millsap: Migrated over to using Invoke-RestMethod and better validation. Huge thanks to Jon Penn for the API documentation.
-# 2020-02-04: Craig Millsap: Completed saving parameters, looping until report is ready, validate error messages.
-
 #Example for the Team Content folder:
 #https://dev.adecognos.arkansas.gov/ibmcognos/bi/v1/disp/rds/wsil/path/Team%20Content%2FStudent%20Management%20System%2F_Share%20Temporarily%20Between%20Districts%2FGentry%2Fautomation
 #/content/folder[@name='Student Management System']/folder[@name='_Share Temporarily Between Districts']/folder[@name='Gentry']/folder[@name='automation']/query[@name='activities']
@@ -151,13 +137,20 @@ if (Test-Path $currentPath\CognosDefaults.ps1) {
     . $currentPath\CognosDefaults.ps1
 }
 
-#version check, continue or failure.
+#version check, continue on failure as if nothing happened at all.
 try {
     $versioncheck = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/AR-k12code/CognosDownloader/master/version.json'
     if ($version -lt [version]($versioncheck.version)) {
         Write-Host "`r`nInfo: There is a new version of this script available at https://www.github.com/AR-K12code/CognosDownloader"
-        Write-Host "Info: Version $($versioncheck.version) is available. Description: $($versioncheck.description)`r`n"
+        Write-Host "Info: Version $($versioncheck.version) is available. Description: $($versioncheck.description)"
     }
+    if ($versioncheck.versions) {
+        $versioncheck.versions | ForEach-Object { $PSItem.version = [version]$PSitem.version }
+        $versioncheck.versions | Where-Object { $PSItem.version -gt $version } | ForEach-Object {
+            Write-Host "Info: Version $($($PSItem.version).ToString()) is available. Description: $($PSItem.description)"
+        }
+    }
+    Write-Host "`r`n"
 } catch {} #Do and show nothing if we don't get a response.
 
 #send mail on failure.

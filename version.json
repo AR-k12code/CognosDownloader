@@ -1,4 +1,31 @@
 {
   "version": "21.02.09.02",
-  "description": "This update includes version checks, file encoding output, fixes for sending emails on errors, additional examples in CognosDefaults.ps1"
+  "description": "This update includes version checks, file encoding output, fixes for sending emails on errors, additional examples in CognosDefaults.ps1",
+
+  "versions": [
+    {
+      "version": "21.02.04",
+      "description": "Craig Millsap - Cognos Analytics 11 upgrade. Saving complex prompts, waiting for report to complete, and validation error messages."
+    },
+    {
+      "version": "18.04.24",
+      "description": "Craig Millsap - Recursive nested folders, email notifications, and waiting for live report to generate."
+    },
+    {
+      "version": "18.04.26",
+      "description": "Joshua Reed expired email notifications."
+    },
+    {
+      "version": "18.04.26",
+      "description": "Scott Organ nested folder support."
+    },
+    {
+      "version": "17.07.12",
+      "description": "Charlie Weber contributions"
+    },
+    {
+      "version": "14.07.23",
+      "description": "Original by Brian Johnson."
+    }
+  ]
 }
