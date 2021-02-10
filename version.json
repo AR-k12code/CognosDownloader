@@ -1,6 +1,6 @@
 {
-  "version": "21.02.10",
-  "description": "Fix for reverting file after timeout on download.",
+  "version": "21.02.10.01",
+  "description": "Fix for reverting file after timeout on download and extra line at the end of output which was breaking imports for 3rd party programs.",
 
   "versions": [
     {

@@ -404,7 +404,7 @@ if (-Not($SkipDownloadingFile)) {
         if ($response4.receipt.status -eq "working") {
 
             #At this point we have our conversationID that we can use to query for if the report is done or not. If it is still running it will return a response with reciept.status = working.
-            $response5 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -TransferEncoding gzip
+            $response5 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
 
             if ($response5.error) { #This would indicate a generic failure or a prompt failure.
                 $errorResponse = $response5.error
@@ -464,7 +464,7 @@ if (-Not($SkipDownloadingFile)) {
                 
                 Write-Host "`r`nInfo: Report is still working."
                 do {
-                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -TransferEncoding gzip
+                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
 
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
@@ -472,11 +472,11 @@ if (-Not($SkipDownloadingFile)) {
                     }
                 } until ($response7.receipt.status -ne "working")
 
-                $response7 | Out-File $fullfilepath -Encoding $Encoding
+                $response7 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
 
             } else {
                 #we did not get a prompt page or an error so we should be able to output to disk.
-                $response5 | Out-File $fullfilepath -Encoding $Encoding
+                $response5 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
             }
         }
         
