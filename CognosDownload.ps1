@@ -527,8 +527,8 @@ if (-Not($DisableCSVVerification)) {
             }
 
         } catch {
-            Write-Host "Error: Unable to verify CSV file. $($_)"
-            Send-Email("[Failure][Verify]","$_")
+            Write-Host "Error: Unable to verify CSV file. Is it possible the CSV files empty? $($_)"
+            Send-Email("[Failure][Verify]","Error: Unable to verify CSV file. Is it possible the CSV files empty? $_")
             Reset-DownloadedFile($fullfilepath)
             exit(10) #General Verification Failure
         }
