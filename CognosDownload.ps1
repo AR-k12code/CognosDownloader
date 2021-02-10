@@ -404,7 +404,7 @@ if (-Not($SkipDownloadingFile)) {
         if ($response4.receipt.status -eq "working") {
 
             #At this point we have our conversationID that we can use to query for if the report is done or not. If it is still running it will return a response with reciept.status = working.
-            $response5 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+            $response5 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -TransferEncoding gzip
 
             if ($response5.error) { #This would indicate a generic failure or a prompt failure.
                 $errorResponse = $response5.error
@@ -464,7 +464,7 @@ if (-Not($SkipDownloadingFile)) {
                 
                 Write-Host "`r`nInfo: Report is still working."
                 do {
-                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -TransferEncoding gzip
 
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
