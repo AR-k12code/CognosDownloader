@@ -115,7 +115,7 @@ Param(
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$RunReport,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
-        [int]$reportwait,
+        [int]$reportwait = 15,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$ReportStudio,
     [parameter(Mandatory=$false)] #This is to establish a session for subsequent calls.
@@ -480,7 +480,7 @@ if (-Not($SkipDownloadingFile)) {
 
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
-                        Start-Sleep -Seconds 5
+                        Start-Sleep -Seconds $reportwait
                     }
                 } until ($response7.receipt.status -ne "working")
 
