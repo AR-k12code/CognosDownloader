@@ -63,17 +63,17 @@ Param(
     [parameter(Mandatory=$false,HelpMessage="Give a specific folder to download the report into.")]
         [string]$savepath="C:\scripts",
     [parameter(Position=2,Mandatory=$false,HelpMessage="Format you want to download report as.")]
-        [string]$extension="CSV",
+        [string]$extension="csv",
     [parameter(Mandatory=$false,HelpMessage="eSchool SSO username to use.")]
-        [string]$username="0000name", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED YET BUT WILL BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
+        [string]$username="", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="File for ADE SSO Password")]
         [string]$passwordfile="C:\Scripts\apscnpw.txt", # Override where the script should find the password for the user specified with -username.
     [parameter(Mandatory=$false,HelpMessage="eSchool DSN location.")]
-        [string]$espdsn="schoolsms", #YOU SHOULD NOT MODIFY THIS. USER THE PARAMETER. FOR BACKWARDS COMPATIBILITY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
+        [string]$espdsn="", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="eFinance username to use.")]
-        [string]$efpuser="yourefinanceusername", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
+        [string]$efpuser="", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="eFinance DSN location.")]
-        [string]$efpdsn="schoolfms", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. FOR BACKWARDS COMPATIBILTY IT IS NOT REQUIRED BUT SHOULD BE IN THE FUTURE. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
+        [string]$efpdsn="", #YOU SHOULD NOT MODIFY THIS. USE THE PARAMETER. CONSIDER USING THE CognosDefaults.ps1 OVERRIDES.
     [parameter(Mandatory=$false,HelpMessage="Cognos Folder Structure.")]
         [string]$cognosfolder="My Folders", #Cognos Folder "Folder 1/Sub Folder 2/Sub Folder 3" NO TRAILING SLASH
     [parameter(Mandatory=$false,HelpMessage="Report Parameters")]
