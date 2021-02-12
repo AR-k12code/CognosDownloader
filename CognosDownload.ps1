@@ -117,7 +117,11 @@ Param(
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [int]$reportwait,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
-        [switch]$ReportStudio
+        [switch]$ReportStudio,
+    [parameter(Mandatory=$false)] #This is to establish a session for subsequent calls.
+        [switch]$EstablishSessionOnly,
+    [parameter(Mandatory=$false)] #This is if you're going to run subsequent sessions aftewards.
+        [switch]$SessionEstablished
 )
 
 $version = [version]"21.02.10.01"
@@ -263,20 +267,27 @@ If ($FileExists -eq $True) {
 }
 
 #submit login and switch to site.
-try {
-    Write-Host "Authenticating and switching to $dsnname... " -ForegroundColor Yellow -NoNewline
-    $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session `
-    -Method "POST" `
-    -ContentType "application/json; charset=UTF-8" `
-    -Credential $creds `
-    -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}" 
+if (-Not($SessionEstablished)) {
+    try {
+        Write-Host "Authenticating and switching to $dsnname... " -ForegroundColor Yellow -NoNewline
+        $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session `
+        -Method "POST" `
+        -ContentType "application/json; charset=UTF-8" `
+        -Credential $creds `
+        -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}" 
 
-    Write-Host "Success." -ForegroundColor Yellow
-} catch {
-    Write-Host "Unable to authenticate and switch into $dsnname. $($_)" -ForegroundColor Red
-    Send-Email("[Failure][Authentication]","$($_)")
-    exit(2)
+        Write-Host "Success." -ForegroundColor Yellow
+    } catch {
+        Write-Host "Unable to authenticate and switch into $dsnname. $($_)" -ForegroundColor Red
+        Send-Email("[Failure][Authentication]","$($_)")
+        exit(2)
+    }
+} else {
+    $session = $incomingsession
 }
+
+#Stop here for Established Session.
+if ($EstablishSessionOnly) { exit(0) }
 
 #No subfolder specified.
 if ($cognosfolder -eq "My Folders") {
