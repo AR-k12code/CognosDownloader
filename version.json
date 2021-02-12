@@ -1,8 +1,12 @@
 {
-  "version": "21.02.10.01",
-  "description": "Fix for reverting file after timeout on download and extra line at the end of output which was breaking imports for 3rd party programs.",
+  "version": "21.02.12",
+  "description": "Synchronously run multiple reports at once. Please don't kill the Cognos Server.",
 
   "versions": [
+    {
+      "version": "21.02.10.01",
+      "description": "Fix for reverting file after timeout on download and extra line at the end of output which was breaking imports for 3rd party programs."
+    },
     {
       "version": "21.02.09.02",
       "description": "This update includes version checks, file encoding output, fixes for sending emails on errors, additional examples in CognosDefaults.ps1"
