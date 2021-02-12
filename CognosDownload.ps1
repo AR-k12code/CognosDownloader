@@ -124,7 +124,7 @@ Param(
         [switch]$SessionEstablished
 )
 
-$version = [version]"21.02.12"
+$version = [version]"21.02.12.01"
 
 Add-Type -AssemblyName System.Web
 
