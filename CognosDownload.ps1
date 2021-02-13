@@ -481,6 +481,7 @@ if (-Not($SkipDownloadingFile)) {
                         $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
                     } catch {
                         $response7 = $NULL
+                        Start-Sleep -Seconds ($reportwait + 10) #Lets wait just a bit longer to see if its a timing issue.
                         $errorResponse++
                     }
 
