@@ -17,7 +17,7 @@ $reports = @{
     'contacts' = @{ 'parameters' = ''; 'folder' = 'automation';  'savepath' = 'c:\scripts\' }
     'facultyids' = @{ 'parameters' = ''; 'folder' = 'automation';  'savepath' = 'c:\scripts\' }
     'activities' = @{ 'parameters' = ''; 'folder' = 'automation';  'savepath' = 'c:\scripts\' }
-    'transportationx' = @{ 'parameters' = ''; 'folder' = 'automation';  'savepath' = 'c:\scripts\' }
+    'transportation' = @{ 'parameters' = ''; 'folder' = 'automation';  'savepath' = 'c:\scripts\' }
 }
 
 #Establish Session Only. Report paramter is required but we can provide a fake one for authentication only.
@@ -36,9 +36,10 @@ $results = $reports.Keys | ForEach-Object -Parallel  {
     $options = ($using:reports).$PSItem
 
     #Run Cognos Download using incoming options.
-    .\CognosDownload.ps1 -username 0403cmillsap -espdsn gentrysms -report $PSItem -cognosfolder "$($options.folder)" -SessionEstablished -savepath "$($options.savepath)" -reportparams "$($options.parameters)" -SkipDownloadingFile -ShowReportDetails
+    .\CognosDownload.ps1 -username 0403cmillsap -espdsn gentrysms -report $PSItem -cognosfolder "$($options.folder)" -SessionEstablished -savepath "$($options.savepath)" -reportparams "$($options.parameters)" -ShowReportDetails
 
     if ($LASTEXITCODE -ne 0) { throw }
+    
 } -AsJob -ThrottleLimit 5 | Wait-Job #Please don't overload the Cognos Server.
 
 $results.ChildJobs | Where-Object { $PSItem.State -eq "Completed" } | Receive-Job

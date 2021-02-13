@@ -474,15 +474,22 @@ if (-Not($SkipDownloadingFile)) {
 
             } elseif ($response5.receipt) { #task is still in a working status
                 
+                #The Cognos Server has started randomly timing out, 502 bad gateway, or TLS errors. We need to allow at least 3 errors becuase its not consistent.
                 Write-Host "`r`nInfo: Report is still working."
                 do {
-                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                    try {
+                        $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                    } catch {
+                        $response7 = $NULL
+                        $errorResponse++
+                    }
 
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
                         Start-Sleep -Seconds $reportwait
                     }
-                } until ($response7.receipt.status -ne "working")
+
+                } until (($response7.receipt.status -ne "working" -AND $NULL -ne $response7) -or $errorResponse -ge 3)
 
                 $response7 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
 
