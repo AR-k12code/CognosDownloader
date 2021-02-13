@@ -112,10 +112,10 @@ Param(
         [string]$Encoding="utf8",
     [parameter(Mandatory=$false)]
         [switch]$DisableCSVVerification,
+    [parameter(Mandatory=$false)]
+        [int]$reportwait = 15,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$RunReport,
-    [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
-        [int]$reportwait = 15,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$ReportStudio,
     [parameter(Mandatory=$false)] #This is to establish a session for subsequent calls.
