@@ -481,14 +481,15 @@ if (-Not($SkipDownloadingFile)) {
                     try {
                         $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
                     } catch {
-                        $response7 = $NULL
+                        $response7 = $NULL #empty out response so do/until loop can check for $NULL
                         Start-Sleep -Seconds ($reportwait + 10) #Lets wait just a bit longer to see if its a timing issue.
-                        $errorResponse++
+                        $errorResponse++ #increment error response counter.
                     }
 
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
                         Start-Sleep -Seconds $reportwait
+                        $errorResponse = 0 #reset error response counter.
                     }
 
                 } until (($response7.receipt.status -ne "working" -AND $NULL -ne $response7) -or $errorResponse -ge 3)
