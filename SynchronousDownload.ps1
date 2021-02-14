@@ -20,7 +20,7 @@ $reports = @{
     'transportation' = @{ 'parameters' = ''; 'folder' = 'automation';  'savepath' = 'c:\scripts\' }
 }
 
-#Establish Session Only. Report paramter is required but we can provide a fake one for authentication only.
+#Establish Session Only. Report parameter is required but we can provide a fake one for authentication only.
 . .\CognosDownload.ps1 -username $username -espdsn $espdsn -report FAKE -EstablishSessionOnly
 
 #Look throught he hash table, pull in session, use established session.
@@ -36,7 +36,7 @@ $results = $reports.Keys | ForEach-Object -Parallel  {
     $options = ($using:reports).$PSItem
 
     #Run Cognos Download using incoming options.
-    .\CognosDownload.ps1 -username 0403cmillsap -espdsn gentrysms -report $PSItem -cognosfolder "$($options.folder)" -SessionEstablished -savepath "$($options.savepath)" -reportparams "$($options.parameters)" -ShowReportDetails
+    .\CognosDownload.ps1 -username 0403cmillsap -espdsn gentrysms -report $PSItem -cognosfolder "$($options.folder)" -SessionEstablished -savepath "$($options.savepath)" -reportparams "$($options.parameters)" -ShowReportDetails -TrimCSVWhiteSpace
 
     if ($LASTEXITCODE -ne 0) { throw }
     

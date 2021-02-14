@@ -14,7 +14,7 @@
 # Please see the https://www.github.com/AR-K12code/CognosDownload to see how to use the CognosDefaults.ps1 file.
 
 # This version is NOT complete. Please check back over the next few weeks for updates!
-# Script Contributors - Brian Johnson, Charlie Weber, Scott Organ, Joshua Reed, and Craig Millsap.
+# Script Contributors - Brian Johnson, Charlie Weber, Scott Organ, Joshua Reed, Craig Millsap, and Michael Hayes.
 
 <#
   .SYNOPSIS
@@ -130,7 +130,7 @@ Param(
 
 )
 
-$version = [version]"21.02.12.01"
+$version = [version]"21.02.14"
 
 Add-Type -AssemblyName System.Web
 

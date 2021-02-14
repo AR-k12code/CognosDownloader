@@ -1,8 +1,12 @@
 {
-  "version": "21.02.12.01",
-  "description": "Fix for capital CSV extension on Linux machines. Removed default string variables for usernames. Updated Synchronous Download example.",
+  "version": "21.02.14",
+  "description": "Added additional recovery attempts when the Cognos Server returns an error code. Added additional CSV Cleanup Options.",
 
   "versions": [
+    {
+      "version": "21.02.12.01",
+      "description": "Fix for capital CSV extension on Linux machines. Removed default string variables for usernames. Updated Synchronous Download example."    
+    },
     {
       "version": "21.02.12",
       "description": "Synchronously run multiple reports at once. Please don't kill the Cognos Server."
