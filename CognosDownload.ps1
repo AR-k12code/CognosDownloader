@@ -486,6 +486,7 @@ if (-Not($SkipDownloadingFile)) {
                 do {
                     try {
                         $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                        $errorResponse = 0 #reset error response counter. We want three in a row, not three total.
                     } catch {
                         #on failure $response7 is not overwritten.
                         $errorResponse++ #increment error response counter.
@@ -501,7 +502,6 @@ if (-Not($SkipDownloadingFile)) {
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
                         Start-Sleep -Seconds $reportwait
-                        $errorResponse = 0 #reset error response counter.
                     }
 
                 } until ($response7.receipt.status -ne "working")
