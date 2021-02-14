@@ -121,7 +121,13 @@ Param(
     [parameter(Mandatory=$false)] #This is to establish a session for subsequent calls.
         [switch]$EstablishSessionOnly,
     [parameter(Mandatory=$false)] #This is if you're going to run subsequent sessions aftewards.
-        [switch]$SessionEstablished
+        [switch]$SessionEstablished,
+    [parameter(Mandatory=$false)] #Remove Spaces in CSV files. This requires Powershell 7.1+
+        [switch]$TrimCSVWhiteSpace,
+    [parameter(Mandatory=$false)] #If you Trim CSV White Space do you want to wrap everything in quotes?
+        [switch]$CSVUseQuotes
+
+
 )
 
 $version = [version]"21.02.12.01"
@@ -481,9 +487,15 @@ if (-Not($SkipDownloadingFile)) {
                     try {
                         $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
                     } catch {
-                        $response7 = $NULL #empty out response so do/until loop can check for $NULL
-                        Start-Sleep -Seconds ($reportwait + 10) #Lets wait just a bit longer to see if its a timing issue.
+                        #on failure $response7 is not overwritten.
                         $errorResponse++ #increment error response counter.
+                        if ($errorResponse -ge 3) {
+                            Write-Host "Failed to download file. $($_)" -ForegroundColor Red
+                            Send-Email("[Failure][Download Failed]","Failed to download file. $($_)")
+                            Reset-DownloadedFile($fullfilepath)
+                            exit(12) #Encountered 3 errors trying to download the file from the conversationID link. Its likely it won't ever succeed.
+                        }
+                        Start-Sleep -Seconds ($reportwait + 10) #Lets wait just a bit longer to see if its a timing issue.
                     }
 
                     if ($response7.receipt.status -eq "working") {
@@ -492,7 +504,7 @@ if (-Not($SkipDownloadingFile)) {
                         $errorResponse = 0 #reset error response counter.
                     }
 
-                } until (($response7.receipt.status -ne "working" -AND $NULL -ne $response7) -or $errorResponse -ge 3)
+                } until ($response7.receipt.status -ne "working")
 
                 $response7 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
 
@@ -546,6 +558,28 @@ if (-Not($DisableCSVVerification)) {
                 Reset-DownloadedFile($fullfilepath)
                 Send-Email("[Failure][Verify]","Only $linecount lines found in CSV.")
                 exit(9)
+            }
+
+            if ($TrimCSVWhiteSpace) {
+                if ($PSVersionTable.PSVersion -lt [version]"7.1.0") {
+                    Write-Host "Error: You specified you wanted to remove the CSV Whitespaces but his requires Powershell 7.1. Not modifying downloaded file." -ForegroundColor RED
+                } else {
+
+                    Write-Host "Info: Cleaning up white spaces in CSV."
+                    $filecontents | Foreach-Object {  
+                        $_.PSObject.Properties | Foreach-Object {
+                            $_.Value = $_.Value.Trim()
+                        }
+                    }
+
+                    if ($CSVUseQuotes) {
+                        Write-Host "Info: Exporting CSV using quotes."
+                        $filecontents | Export-Csv -UseQuotes Always -Path $fullfilepath -Force
+                    } else {
+                        $filecontents | Export-Csv -UseQuotes AsNeeded -Path $fullfilepath -Force
+                    }
+
+                }
             }
 
         } catch {
