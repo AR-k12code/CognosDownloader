@@ -51,3 +51,9 @@ Get-Help .\CognosDownload.ps1 -Examples
 ````
 .\ResetPassword.ps1
 ````
+
+## eFinance Username
+> It is possible that your eFinance username is not the same as your SSO username. If your account came from the old APSCN GUI days you'll need to specify both -username and -efpuser separately. For example my username for eFinance is not the same as my SSO username. We did not have the LEA at the front to begin with. The $efpuser can also be specified in the CognosDefaults.ps1.
+````
+.\CognosDownload.ps1 -username 0401cmillsap -efpuser cmillsap -efpdsn gentryfms -eFinance -report openpos -savepath "c:\scripts"
+````

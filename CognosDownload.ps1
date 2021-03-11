@@ -14,7 +14,7 @@
 # Please see the https://www.github.com/AR-K12code/CognosDownload to see how to use the CognosDefaults.ps1 file.
 
 # This version is NOT complete. Please check back over the next few weeks for updates!
-# Script Contributors - Brian Johnson, Charlie Weber, Scott Organ, Joshua Reed, and Craig Millsap.
+# Script Contributors - Brian Johnson, Charlie Weber, Scott Organ, Joshua Reed, Craig Millsap, and Michael Hayes.
 
 <#
   .SYNOPSIS
@@ -112,19 +112,25 @@ Param(
         [string]$Encoding="utf8",
     [parameter(Mandatory=$false)]
         [switch]$DisableCSVVerification,
+    [parameter(Mandatory=$false)]
+        [int]$reportwait = 15,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$RunReport,
-    [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
-        [int]$reportwait = 15,
     [parameter(Mandatory=$false)] #not used anymore. here for backwards compatibility
         [switch]$ReportStudio,
     [parameter(Mandatory=$false)] #This is to establish a session for subsequent calls.
         [switch]$EstablishSessionOnly,
     [parameter(Mandatory=$false)] #This is if you're going to run subsequent sessions aftewards.
-        [switch]$SessionEstablished
+        [switch]$SessionEstablished,
+    [parameter(Mandatory=$false)] #Remove Spaces in CSV files. This requires Powershell 7.1+
+        [switch]$TrimCSVWhiteSpace,
+    [parameter(Mandatory=$false)] #If you Trim CSV White Space do you want to wrap everything in quotes?
+        [switch]$CSVUseQuotes
+
+
 )
 
-$version = [version]"21.02.12"
+$version = [version]"21.03.11"
 
 Add-Type -AssemblyName System.Web
 
@@ -268,20 +274,31 @@ If ($FileExists -eq $True) {
 
 #submit login and switch to site.
 if (-Not($SessionEstablished)) {
-    try {
-        Write-Host "Authenticating and switching to $dsnname... " -ForegroundColor Yellow -NoNewline
-        $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session `
-        -Method "POST" `
-        -ContentType "application/json; charset=UTF-8" `
-        -Credential $creds `
-        -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}" 
+    $failedlogin = 0
+    do {
+        try {
+            Write-Host "Authenticating and switching to $dsnname... " -ForegroundColor Yellow -NoNewline
+            $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session `
+            -Method "POST" `
+            -ContentType "application/json; charset=UTF-8" `
+            -Credential $creds `
+            -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}" 
 
-        Write-Host "Success." -ForegroundColor Yellow
-    } catch {
-        Write-Host "Unable to authenticate and switch into $dsnname. $($_)" -ForegroundColor Red
-        Send-Email("[Failure][Authentication]","$($_)")
-        exit(2)
-    }
+            Write-Host "Success." -ForegroundColor Yellow
+        } catch {
+            $failedlogin++            
+            if ($failedlogin -ge 2) {
+                Write-Host "Unable to authenticate and switch into $dsnname. $($_)" -ForegroundColor Red
+                Send-Email("[Failure][Authentication]","$($_)")
+                exit(2)
+            } else {
+                #Unfortuantely we are still having an issue authenticating to Cognos. So we need to make another attemp after a random number of seconds.
+                Write-Host "Failed to authenticate. Attempting again..." -ForegroundColor Red
+                Remove-Variable -Name session
+                Start-Sleep -Seconds (Get-Random -Maximum 15 -Minimum 5)
+            }
+        }
+    } until ($session)
 } else {
     $session = $incomingsession
 }
@@ -475,13 +492,29 @@ if (-Not($SkipDownloadingFile)) {
             } elseif ($response5.receipt) { #task is still in a working status
                 
                 Write-Host "`r`nInfo: Report is still working."
+                #The Cognos Server has started randomly timing out, 502 bad gateway, or TLS errors. We need to allow at least 3 errors becuase its not consistent.
+                $errorResponse = 0
                 do {
-                    $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                    try {
+                        $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                        $errorResponse = 0 #reset error response counter. We want three in a row, not three total.
+                    } catch {
+                        #on failure $response7 is not overwritten.
+                        $errorResponse++ #increment error response counter.
+                        if ($errorResponse -ge 3) {
+                            Write-Host "Failed to download file. $($_)" -ForegroundColor Red
+                            Send-Email("[Failure][Download Failed]","Failed to download file. $($_)")
+                            Reset-DownloadedFile($fullfilepath)
+                            exit(12) #Encountered 3 errors trying to download the file from the conversationID link. Its likely it won't ever succeed.
+                        }
+                        Start-Sleep -Seconds ($reportwait + 10) #Lets wait just a bit longer to see if its a timing issue.
+                    }
 
                     if ($response7.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
                         Start-Sleep -Seconds $reportwait
                     }
+
                 } until ($response7.receipt.status -ne "working")
 
                 $response7 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
@@ -536,6 +569,28 @@ if (-Not($DisableCSVVerification)) {
                 Reset-DownloadedFile($fullfilepath)
                 Send-Email("[Failure][Verify]","Only $linecount lines found in CSV.")
                 exit(9)
+            }
+
+            if ($TrimCSVWhiteSpace) {
+                if ($PSVersionTable.PSVersion -lt [version]"7.1.0") {
+                    Write-Host "Error: You specified you wanted to remove the CSV Whitespaces but his requires Powershell 7.1. Not modifying downloaded file." -ForegroundColor RED
+                } else {
+
+                    Write-Host "Info: Cleaning up white spaces in CSV."
+                    $filecontents | Foreach-Object {  
+                        $_.PSObject.Properties | Foreach-Object {
+                            $_.Value = $_.Value.Trim()
+                        }
+                    }
+
+                    if ($CSVUseQuotes) {
+                        Write-Host "Info: Exporting CSV using quotes."
+                        $filecontents | Export-Csv -UseQuotes Always -Path $fullfilepath -Force
+                    } else {
+                        $filecontents | Export-Csv -UseQuotes AsNeeded -Path $fullfilepath -Force
+                    }
+
+                }
             }
 
         } catch {

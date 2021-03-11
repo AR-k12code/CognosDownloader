@@ -20,7 +20,7 @@ $reports = @{
     'transportation' = @{ 'parameters' = ''; 'folder' = 'automation';  'savepath' = 'c:\scripts\' }
 }
 
-#Establish Session Only. Report paramter is required but we can provide a fake one for authentication only.
+#Establish Session Only. Report parameter is required but we can provide a fake one for authentication only.
 . .\CognosDownload.ps1 -username $username -espdsn $espdsn -report FAKE -EstablishSessionOnly
 
 #Look throught he hash table, pull in session, use established session.
@@ -36,10 +36,22 @@ $results = $reports.Keys | ForEach-Object -Parallel  {
     $options = ($using:reports).$PSItem
 
     #Run Cognos Download using incoming options.
-    .\CognosDownload.ps1 -username 0403cmillsap -espdsn gentrysms -report $PSItem -cognosfolder "$($options.folder)" -SessionEstablished -savepath "$($options.savepath)" -reportparams "$($options.parameters)"
+    .\CognosDownload.ps1 -username 0403cmillsap -espdsn gentrysms -report $PSItem -cognosfolder "$($options.folder)" -SessionEstablished -savepath "$($options.savepath)" -reportparams "$($options.parameters)" -ShowReportDetails -TrimCSVWhiteSpace
 
-} -AsJob -ThrottleLimit 5 #Please don't overload the Cognos Server.
+    if ($LASTEXITCODE -ne 0) { throw }
+    
+} -AsJob -ThrottleLimit 5 | Wait-Job #Please don't overload the Cognos Server.
 
-$results | Wait-Job | Receive-Job
+$results.ChildJobs | Where-Object { $PSItem.State -eq "Completed" } | Receive-Job
+
+#Output any failed jobs information.
+$failedJobs = $results.ChildJobs | Where-Object { $PSItem.State -ne "Completed" }
+$failedJobs | ForEach-Object {
+    $PSItem | Receive-Job
+}
+
+if (($failedJobs | Measure-Object).count -ge 1) {
+    Write-Host "Failed running", (($failedJobs | Measure-Object).count), "jobs." -ForegroundColor RED
+}
 
 #profit.
