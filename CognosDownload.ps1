@@ -130,7 +130,7 @@ Param(
 
 )
 
-$version = [version]"21.02.14"
+$version = [version]"21.03.11"
 
 Add-Type -AssemblyName System.Web
 
@@ -274,20 +274,31 @@ If ($FileExists -eq $True) {
 
 #submit login and switch to site.
 if (-Not($SessionEstablished)) {
-    try {
-        Write-Host "Authenticating and switching to $dsnname... " -ForegroundColor Yellow -NoNewline
-        $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session `
-        -Method "POST" `
-        -ContentType "application/json; charset=UTF-8" `
-        -Credential $creds `
-        -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}" 
+    $failedlogin = 0
+    do {
+        try {
+            Write-Host "Authenticating and switching to $dsnname... " -ForegroundColor Yellow -NoNewline
+            $response1 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/login" -SessionVariable session `
+            -Method "POST" `
+            -ContentType "application/json; charset=UTF-8" `
+            -Credential $creds `
+            -Body "{`"parameters`":[{`"name`":`"h_CAM_action`",`"value`":`"logonAs`"},{`"name`":`"CAMNamespace`",`"value`":`"$camName`"},{`"name`":`"$dsnparam`",`"value`":`"$dsnname`"}]}" 
 
-        Write-Host "Success." -ForegroundColor Yellow
-    } catch {
-        Write-Host "Unable to authenticate and switch into $dsnname. $($_)" -ForegroundColor Red
-        Send-Email("[Failure][Authentication]","$($_)")
-        exit(2)
-    }
+            Write-Host "Success." -ForegroundColor Yellow
+        } catch {
+            $failedlogin++            
+            if ($failedlogin -ge 2) {
+                Write-Host "Unable to authenticate and switch into $dsnname. $($_)" -ForegroundColor Red
+                Send-Email("[Failure][Authentication]","$($_)")
+                exit(2)
+            } else {
+                #Unfortuantely we are still having an issue authenticating to Cognos. So we need to make another attemp after a random number of seconds.
+                Write-Host "Failed to authenticate. Attempting again..." -ForegroundColor Red
+                Remove-Variable -Name session
+                Start-Sleep -Seconds (Get-Random -Maximum 15 -Minimum 5)
+            }
+        }
+    } until ($session)
 } else {
     $session = $incomingsession
 }

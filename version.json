@@ -1,8 +1,12 @@
 {
-  "version": "21.02.14",
-  "description": "Added additional recovery attempts when the Cognos Server returns an error code. Added additional CSV Cleanup Options.",
+  "version": "21.03.11",
+  "description": "Added second authentication attempt because sometimes authentication will fail for no reason but work in a few seconds.",
 
   "versions": [
+    {
+      "version": "21.02.14",
+      "description": "Added additional recovery attempts when the Cognos Server returns an error code. Added additional CSV Cleanup Options."
+    },
     {
       "version": "21.02.12.01",
       "description": "Fix for capital CSV extension on Linux machines. Removed default string variables for usernames. Updated Synchronous Download example."    
