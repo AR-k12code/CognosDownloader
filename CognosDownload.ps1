@@ -125,12 +125,12 @@ Param(
     [parameter(Mandatory=$false)] #Remove Spaces in CSV files. This requires Powershell 7.1+
         [switch]$TrimCSVWhiteSpace,
     [parameter(Mandatory=$false)] #If you Trim CSV White Space do you want to wrap everything in quotes?
-        [switch]$CSVUseQuotes
-
-
+        [switch]$CSVUseQuotes,
+    [parameter(Mandatory=$false)] #If you want to override the default saved filename. You need to include the file extension.
+        [string]$FileName
 )
 
-$version = [version]"21.03.11"
+$version = [version]"21.04.14"
 
 Add-Type -AssemblyName System.Web
 
@@ -254,7 +254,11 @@ switch ($extension) {
     DEFAULT { $fileformat = "CSV" }
 }
 
-$fullfilepath = "$savepath\$report.$extension"
+if ($FileName) {
+    $fullfilepath = "$savepath\$FileName"
+} else {
+    $fullfilepath = "$savepath\$report.$extension"
+}
 
 If (!(Test-Path ($savepath))) {
     Write-Host("Specified save folder does not exist! [$fullfilepath]") -ForeGroundColor Yellow
