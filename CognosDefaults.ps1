@@ -42,3 +42,8 @@
 #     'SSOusername' { $efpuser =''; $passwordfile = 'c:\scripts\importfiles\scripts\userpw1.txt' }
 #     'SSOusername2' { $efpuser = ''; $passwordfile = 'c:\scripts\importfiles\scripts\userpw1.txt' }
 #}
+
+#Example of multi user environment
+#switch($env:username) {
+#    'xyz_automation' { $username = '0401cmillsap'; $passwordfile = 'c:\script\cmillsappw.txt'; $espdsn = "gentrysms" }
+# }
