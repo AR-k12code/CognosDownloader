@@ -12,7 +12,7 @@ then the prompt will need to be named something else.
 
 HIGHLY RECOMMEND using the CognosDefaults.ps1 file to set your username, espdsn, and passwordfile path.
 
-.\CognosDownloadFolder.ps1 -username 0403cmillsap -espdsn gentrysms -cognosfolder "_Share Temporarily Between Districts/Gentry/automation" -reportparams "p_year=2021&p_anythingelse=12345" 
+.\CognosDownloadFolder.ps1 -username 0403cmillsap -espdsn gentrysms -cognosfolder "_Share Temporarily Between Districts/Gentry/automation" -reportparams "p_year=2021&p_anythingelse=12345" -savepath "C:\Scripts\temp\temp"
 
 #>
 
