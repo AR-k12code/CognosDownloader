@@ -20,8 +20,19 @@ cd \scripts\CognosDownloader
 git pull
 ````
 
+### Error Updating?
+> If you see errors like:
+````
+error: Your local changes to the following files would be overwritten by merge:
+CognosDefaults.ps1
+Please commit your changes or stash them before you merge.
+Aborting
+Updating a47e288..862d533
+````
+>Then you have modified files in the CognosDownloader folder. The quickest option is to delete the c:\scripts\CognosDownloader folder and run the suggested install procedure again.
+
 ## CognosDefaults.ps1
->The file CognosDefaults.ps1 has variables that are commented out. Any uncommented variables in this file will override anything you specify on the command line OR modify in the CognosDownload.ps1 file. This file must be in the same folder as the CognosDownload.ps1 file to work.
+>The file CognosDefaults.ps1 has variables that are commented out. Any uncommented variables in this file will override anything you specify on the command line. This file must be in the same folder as the CognosDownload.ps1 file to work. You should save your modified file to c:\scripts\CognosDefaults.ps1 and call the Cognos Downloader from c:\scripts\CognosDownload.ps1.
 ````
 #$username = '0000username'
 #$passwordfile = 'c:\scripts\mysavedpassword.txt'
