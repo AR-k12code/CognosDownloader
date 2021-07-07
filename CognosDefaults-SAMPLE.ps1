@@ -19,9 +19,13 @@ Uncomment any sections you need below.
 
 #Override password file path.
 #$passwordfile = 'c:\scripts\mysavedpassword.txt'
+#For Linux
+$passwordfile = '/scripts/apscnpass.txt'
 
 #If you always want to save to the same path.
 #$savepath = 'c:\scripts\files'
+#For Linux
+$savepath = '/scripts/files'
 
 #eFinance DSN
 #$efpdsn = 'schoolfms' #Recommend to set this
@@ -35,6 +39,8 @@ Uncomment any sections you need below.
 #$smtpserver="smtp-relay.gmail.com"
 #$smtpport="587"
 #$smtppasswordfile="C:\Scripts\emailpw.txt" #change to a file path for email server password not needed if you use smtp-relay and auth your public IPs
+#For Linux
+#$smtppasswordfile="/scripts/emailpw.txt"
 
 <#
 Example for multiuser environment where the scripts are running under the same Windows Accounts. All of these password files would be decryptable under
