@@ -30,7 +30,7 @@ Uncomment any sections you need below.
 #$efpuser = 'efinanceusername'
 
 #Email Configuration so you don't have to put it on the command line. Still need to specify -SendMail on command line.
-#$mailfrom = 'from@yourdomain.com"
+#$mailfrom = "from@yourdomain.com"
 #$mailto="technology@yourdomain.com"
 #$smtpserver="smtp-relay.gmail.com"
 #$smtpport="587"
@@ -91,4 +91,12 @@ Modify as you need.
 #     $SkipTheseReports = @('Report Name 1','Report_Name_2')
 #     Write-Host "Info: Skip downloading this file per the CognosDefaults.ps1" -ForegroundColor Green
 #     if ($SkipTheseReports -contains $report) { $SkipDownloadingFile = $True }
+# }
+
+<#
+Linux set path
+#>
+# if (-Not($IsWindows)) {
+#     $savepath = '/scripts/download'
+#     $passwordfile = '/scripts/mypassword.txt'
 # }

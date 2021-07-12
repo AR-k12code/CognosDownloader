@@ -68,3 +68,9 @@ Get-Help .\CognosDownload.ps1 -Examples
 ````
 .\CognosDownload.ps1 -username 0401cmillsap -efpuser cmillsap -efpdsn gentryfms -eFinance -report openpos -savepath "c:\scripts"
 ````
+
+## Running on Linux
+> You will need to install Powershell 7 and this dependency on Ubuntu.
+````
+apt-get install -y --no-install-recommends gss-ntlmssp
+````
