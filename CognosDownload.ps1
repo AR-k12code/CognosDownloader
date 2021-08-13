@@ -130,9 +130,15 @@ Param(
         [string]$FileName
 )
 
-$version = [version]"21.06.11"
+$version = [version]"21.08.13"
 
 Add-Type -AssemblyName System.Web
+#https://stackoverflow.com/questions/47952689/powershell-invoke-webrequest-and-character-encoding
+function convertFrom-MisinterpretedUtf8([string] $String) {
+    [System.Text.Encoding]::UTF8.GetString(
+        [System.Text.Encoding]::GetEncoding(28591).GetBytes($String)
+    )
+}
 
 #powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -espdns schoolsms -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" 
 
@@ -521,11 +527,11 @@ if (-Not($SkipDownloadingFile)) {
 
                 } until ($response7.receipt.status -ne "working")
 
-                $response7 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
+                convertFrom-MisinterpretedUtf8($response7) | Out-File $fullfilepath -Encoding $Encoding -NoNewline
 
             } else {
                 #we did not get a prompt page or an error so we should be able to output to disk.
-                $response5 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
+                convertFrom-MisinterpretedUtf8($response5) | Out-File $fullfilepath -Encoding $Encoding -NoNewline
             }
         }
         
