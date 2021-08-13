@@ -130,7 +130,7 @@ Param(
         [string]$FileName
 )
 
-$version = [version]"21.06.11"
+$version = [version]"21.08.13"
 
 Add-Type -AssemblyName System.Web
 
@@ -433,13 +433,19 @@ if (-Not($SkipDownloadingFile)) {
 
         Write-Host "Downloading Report to ""$($fullfilepath)""... " -ForegroundColor Yellow -NoNewline
         $response4 = Invoke-RestMethod -Uri $downloadURL -WebSession $session
-
+        
         if ($response4.receipt.status -eq "working") {
 
             #At this point we have our conversationID that we can use to query for if the report is done or not. If it is still running it will return a response with reciept.status = working.
-            $response5 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+            Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -OutFile "$fullfilepath"
+            try {
+                $response5 = [xml]((Get-Content "$fullfilepath") -replace ' xmlns:rds="http://www.ibm.com/xmlns/prod/cognos/rds/types/201310"','' -replace 'rds:','')
+            } catch { 
+                #nothing to see here file apparently downloaded successfully.
+            }
 
             if ($response5.error) { #This would indicate a generic failure or a prompt failure.
+                Reset-DownloadedFile($fullfilepath)
                 $errorResponse = $response5.error
                 Write-Host "Error detected in downloaded file. $($errorResponse.message)" -ForegroundColor Red
 
@@ -499,8 +505,10 @@ if (-Not($SkipDownloadingFile)) {
                 #The Cognos Server has started randomly timing out, 502 bad gateway, or TLS errors. We need to allow at least 3 errors becuase its not consistent.
                 $errorResponse = 0
                 do {
+
+                    #This block is in case it can't connect to server for some reason. The file may be downloaded successfully or it may be a ticket saying check again.
                     try {
-                        $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                        Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -OutFile "$fullfilepath"
                         $errorResponse = 0 #reset error response counter. We want three in a row, not three total.
                     } catch {
                         #on failure $response7 is not overwritten.
@@ -514,21 +522,24 @@ if (-Not($SkipDownloadingFile)) {
                         Start-Sleep -Seconds ($reportwait + 10) #Lets wait just a bit longer to see if its a timing issue.
                     }
 
-                    if ($response7.receipt.status -eq "working") {
-                        Write-Host '.' -NoNewline
-                        Start-Sleep -Seconds $reportwait
+                    #We need to check if its a ticket or the actual file.
+                    try {
+                        $response7 = [xml]((Get-Content "$fullfilepath") -replace ' xmlns:rds="http://www.ibm.com/xmlns/prod/cognos/rds/types/201310"','' -replace 'rds:','')
+
+                        if ($response7.receipt.status -eq "working") {
+                            Write-Host '.' -NoNewline
+                            Start-Sleep -Seconds $reportwait
+                        }
+
+                    } catch {
+                        #nothing to do. the file must have downloaded correctly.
                     }
 
                 } until ($response7.receipt.status -ne "working")
 
-                $response7 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
-
-            } else {
-                #we did not get a prompt page or an error so we should be able to output to disk.
-                $response5 | Out-File $fullfilepath -Encoding $Encoding -NoNewline
             }
         }
-        
+
         Write-Host "Success." -ForegroundColor Yellow
     } catch {
         Write-Host "Failed to download file. $($_)" -ForegroundColor Red
