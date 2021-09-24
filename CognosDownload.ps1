@@ -110,7 +110,7 @@ Param(
         [switch]$SavePrompts,
     [parameter(Mandatory=$false)]
         [string]$Encoding="utf8",
-    [parameter(Mandatory=$false)]
+    [parameter(Mandatory=$false)] #Verification now includes checking CSV,XLSX and XML.
         [switch]$DisableCSVVerification,
     [parameter(Mandatory=$false)]
         [int]$reportwait = 15,
@@ -130,9 +130,11 @@ Param(
         [string]$FileName
 )
 
-$version = [version]"21.08.13"
+$version = [version]"21.09.24"
 
 Add-Type -AssemblyName System.Web
+
+#As of 9/24/2021 this should now be invalid.
 #https://stackoverflow.com/questions/47952689/powershell-invoke-webrequest-and-character-encoding
 function convertFrom-MisinterpretedUtf8([string] $String) {
     [System.Text.Encoding]::UTF8.GetString(
@@ -256,8 +258,9 @@ If ($smtpauth) {
 switch ($extension) {
     "pdf" { $fileformat = "PDF" }
     "csv" { $fileformat = "CSV" }
-    "xlsx" { $fileformat = "spreadsheetML" }
-    DEFAULT { $fileformat = "CSV" }
+    "xlsx" { $fileformat = "xlsxData" }
+    "xml" { $fileformat = "XML" }
+    #DEFAULT { $fileformat = "CSV" }
 }
 
 if ($FileName) {
@@ -400,7 +403,7 @@ if (-Not($SkipDownloadingFile)) {
         }
 
         $downloadURL = "$($baseURL)/ibmcognos/bi/v1/disp/rds/outputFormat/path/$($cognosfolder)/$($report)/$($validExtension)?v=3&async=MANUAL"
-        
+                
         #https://www.ibm.com/support/knowledgecenter/SSEP7J_11.1.0/com.ibm.swg.ba.cognos.ca_dg_cms.doc/c_dg_raas_run_rep_prmpt.html#dg_raas_run_rep_prmpt
         #I think this should be a path as well to the xmlData so you can save it to a text file and pull in when needed to run.
         #Maybe if the prompts return a Test-Path $True then import and use the xmlData field instead. This should allow for more complex prompts.
@@ -438,15 +441,32 @@ if (-Not($SkipDownloadingFile)) {
         } catch {}
 
         Write-Host "Downloading Report to ""$($fullfilepath)""... " -ForegroundColor Yellow -NoNewline
+        
+        #Response4 should always be a ticket. Then we move forward with the conversationID.
         $response4 = Invoke-RestMethod -Uri $downloadURL -WebSession $session
 
         if ($response4.receipt.status -eq "working") {
 
-            #At this point we have our conversationID that we can use to query for if the report is done or not. If it is still running it will return a response with reciept.status = working.
-            $response5 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+            #At this point we have our conversationID that we can use to query for if the report is done or not. If it is still running it will return an XML response with reciept.status = working.
+            #The problem now is that Cognos decides to either reply with the actual file or another receipt. Since we can't decipher which one prior to our next request we need to save the output
+            #to the disk. I have tried keeping this in memory but the way Invoke-WebRequest and Invoke-RestMethod move it from memory often leads to incorrect encoding. 
 
-            if ($response5.error) { #This would indicate a generic failure or a prompt failure.
-                $errorResponse = $response5.error
+            #We need a filename to save to that won't conflict with the reportID.xml we already use for saved parameters. Lets hash the reportID for a predictable yet nonconflicting name.
+            $reportIDHash = Get-FileHash -InputStream ([System.IO.MemoryStream]::New([System.Text.Encoding]::ASCII.GetBytes($reportID)))
+            #We want to make sure we always keep data together so we don't leave confidential information somewhere else on the system. DO NOT USE TEMP!
+            $reportIDHashFilePath = "$(Split-Path $fullfilepath)\$($reportIDHash.Hash)"
+
+            #Attempt first download.
+            Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -OutFile "$reportIDHashFilePath" -ErrorAction STOP
+
+            #Now we need to test if we got a ticket or not. If not then it should be the actual data and we can rename.
+            try {
+                $fileContents = [XML](Get-Content $reportIDHashFilePath)
+            } catch {}
+
+            #This would indicate a generic failure or a prompt failure.
+            if ($fileContents.error) {
+                $errorResponse = $fileContents.error
                 Write-Host "Error detected in downloaded file. $($errorResponse.message)" -ForegroundColor Red
 
                 if ($errorResponse.promptID) {
@@ -499,14 +519,16 @@ if (-Not($SkipDownloadingFile)) {
                 Send-Email("[Failure][Prompts]","Report $report requires prompts to run properly.")
                 exit(5)
 
-            } elseif ($response5.receipt) { #task is still in a working status
+            } elseif ($fileContents.receipt) { #task is still in a working status
                 
                 Write-Host "`r`nInfo: Report is still working."
+                Start-Sleep -Seconds 1 #Cognos is stupid fast sometimes but not so fast that we can make another query immediately.
+                
                 #The Cognos Server has started randomly timing out, 502 bad gateway, or TLS errors. We need to allow at least 3 errors becuase its not consistent.
                 $errorResponse = 0
                 do {
                     try {
-                        $response7 = Invoke-RestMethod -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session
+                        Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=AUTO" -WebSession $session -OutFile "$reportIDHashFilePath" -ErrorAction STOP
                         $errorResponse = 0 #reset error response counter. We want three in a row, not three total.
                     } catch {
                         #on failure $response7 is not overwritten.
@@ -520,18 +542,26 @@ if (-Not($SkipDownloadingFile)) {
                         Start-Sleep -Seconds ($reportwait + 10) #Lets wait just a bit longer to see if its a timing issue.
                     }
 
-                    if ($response7.receipt.status -eq "working") {
+                    #Now we need to test if we got a ticket or not. If not then it should be the actual data and we can rename.
+                    try {
+                        $fileContents = [XML](Get-Content $reportIDHashFilePath)
+                    } catch {}
+
+                    if ($fileContents.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
                         Start-Sleep -Seconds $reportwait
                     }
 
-                } until ($response7.receipt.status -ne "working")
+                } until ($fileContents.receipt.status -ne "working")
 
-                convertFrom-MisinterpretedUtf8($response7) | Out-File $fullfilepath -Encoding $Encoding -NoNewline
+                #We sould have downloaded a file to the $reportIDHashFilePath and it didn't open as XML with a receipt or error.
+                #This should be our file so lets rename to the actual full filepath.
+                Move-Item $reportIDHashFilePath $fullfilepath -Force
 
             } else {
-                #we did not get a prompt page or an error so we should be able to output to disk.
-                convertFrom-MisinterpretedUtf8($response5) | Out-File $fullfilepath -Encoding $Encoding -NoNewline
+                #We sould have downloaded a file to the $reportIDHashFilePath and it didn't open as XML with a receipt or error.
+                #This should be our file so lets rename to the actual full filepath.
+                Move-Item $reportIDHashFilePath $fullfilepath -Force
             }
         }
         
@@ -548,20 +578,38 @@ if (-Not($SkipDownloadingFile)) {
     exit(0)
 }
 
-# check file for proper format if csv
+# check file for proper format of formats with rows.
 if (-Not($DisableCSVVerification)) {
-    if ($extension -eq "csv") {
+    if (@('csv','xlsx','xml') -contains $extension) {
         $FileExists = Test-Path $fullfilepath
         if ($FileExists -eq $False) {
-            Write-Host("Does not exist:" + $fullfilepath)
-            Send-Email("[Failure][Output]","CSV Did not download to expected path.")
-            exit(7) #CSV file didn't download to expected path
+            Write-Host("File does not exist:" + $fullfilepath)
+            Send-Email("[Failure][Output]","File Did not download to expected path.")
+            exit(7) #File didn't download to expected path
         }
         
         try {
-            $filecontents = Import-CSV $fullfilepath
-
-            $headercount = ($filecontents | Get-Member | Where-Object { $PSItem.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name | Measure-Object).Count
+            
+            if ($extension -eq "csv") {
+                $fileContents = Import-CSV $fullfilepath
+            } elseif ($extension -eq "xlsx") {    
+                #Verify XLSX file.
+                if (Get-Command Import-Excel -ErrorAction SilentlyContinue) {
+                    $fileContents = Import-Excel $fullfilepath
+                } else {
+                    Write-Host "Notify: You did not specify the parameter -DisableCSVVerification but you don't have the Import-Excel module to verify this xlsx file."
+                }
+            } elseif ($extension -eq "xml") {
+                #Verify XML file.
+                $fileContents = ([xml](Get-Content $fullfilepath)).dataset.data.row
+                if ($fileContents.Count -ge $requiredlinecount) {
+                    #XML does not have NoteProperty. We have to trust that returned rows count as data.
+                    #we could check $fileContents.dataset.data.row[0].value | Measure-Command but honestly since it doesn't have named values it seems kinda useless.
+                    exit(0)
+                }
+            }
+            
+            $headercount = ($fileContents | Get-Member | Where-Object { $PSItem.MemberType -eq 'NoteProperty' } | Select-Object -ExpandProperty Name | Measure-Object).Count
             if ($headercount -gt 1) {
                 Write-Host("Passed CSV header check with $headercount headers...") -ForeGroundColor Yellow
             } else {
@@ -571,7 +619,7 @@ if (-Not($DisableCSVVerification)) {
                 exit(8)
             }
 
-            $linecount = ($filecontents | Measure-Object).Count
+            $linecount = ($fileContents | Measure-Object).Count
             if ($linecount -ge $requiredlinecount) { #Think schools.csv for smaller districts with only 3 campuses.
                 Write-Host("Passed CSV line count with $linecount lines...") -ForeGroundColor Yellow
             } else {
@@ -581,13 +629,13 @@ if (-Not($DisableCSVVerification)) {
                 exit(9)
             }
 
-            if ($TrimCSVWhiteSpace) {
+            if ($extension -eq "csv" -and $TrimCSVWhiteSpace) {
                 if ($PSVersionTable.PSVersion -lt [version]"7.1.0") {
                     Write-Host "Error: You specified you wanted to remove the CSV Whitespaces but his requires Powershell 7.1. Not modifying downloaded file." -ForegroundColor RED
                 } else {
 
                     Write-Host "Info: Cleaning up white spaces in CSV."
-                    $filecontents | Foreach-Object {  
+                    $fileContents | Foreach-Object {  
                         $_.PSObject.Properties | Foreach-Object {
                             $_.Value = $_.Value.Trim()
                         }
@@ -595,21 +643,22 @@ if (-Not($DisableCSVVerification)) {
 
                     if ($CSVUseQuotes) {
                         Write-Host "Info: Exporting CSV using quotes."
-                        $filecontents | Export-Csv -UseQuotes Always -Path $fullfilepath -Force
+                        $fileContents | Export-Csv -UseQuotes Always -Path $fullfilepath -Force
                     } else {
-                        $filecontents | Export-Csv -UseQuotes AsNeeded -Path $fullfilepath -Force
+                        $fileContents | Export-Csv -UseQuotes AsNeeded -Path $fullfilepath -Force
                     }
 
                 }
             }
 
         } catch {
-            Write-Host "Error: Unable to verify CSV file. Is it possible the CSV files empty? $($_)"
-            Send-Email("[Failure][Verify]","Error: Unable to verify CSV file. Is it possible the CSV files empty? $_")
+            Write-Host "Error: Unable to verify downloaded file. Is it possible the $extension file is empty? $($_)"
+            Send-Email("[Failure][Verify]","Error: Unable to verify downloaded file. Is it possible the $extension file is empty? $_")
             Reset-DownloadedFile($fullfilepath)
             exit(10) #General Verification Failure
         }
     }
+
 }
 
 #need a valid exit here so this script can be put into a loop in case a file fails to download on first try

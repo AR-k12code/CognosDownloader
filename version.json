@@ -1,7 +1,11 @@
 {
-  "version": "21.08.13",
-  "description": "Fixed encoding issue where characters were replaced with question marks.",
+  "version": "21.09.24",
+  "description": "XLSX, XML, and PDF outputs are now supported. CSV, XLSX, and XML are verfied against -requiredlinecount paramater. This now saves the Cognos response directly to disk to avoid encoding issues.",
   "versions": [
+    {
+      "version": "21.08.13",
+      "description": "Fixed encoding issue where characters were replaced with question marks."
+    },
     {
     "version": "21.06.11",
     "description": "Updated documentation and CognosDefaults.ps1 example. No new features."
