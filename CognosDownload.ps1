@@ -255,10 +255,11 @@ If ($smtpauth) {
     }
 }
 
+#https://www.ibm.com/docs/en/cognos-analytics/11.1.0?topic=sets-outputformatenum
 switch ($extension) {
     "pdf" { $fileformat = "PDF" }
     "csv" { $fileformat = "CSV" }
-    "xlsx" { $fileformat = "xlsxData" }
+    "xlsx" { $fileformat = "spreadsheetML" }
     "xml" { $fileformat = "XML" }
     #DEFAULT { $fileformat = "CSV" }
 }
