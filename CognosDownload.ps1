@@ -546,7 +546,11 @@ if (-Not($SkipDownloadingFile)) {
                     #Now we need to test if we got a ticket or not. If not then it should be the actual data and we can rename.
                     try {
                         $fileContents = [XML](Get-Content $reportIDHashFilePath)
-                    } catch {}
+                    } catch {
+                        #If we can't convert it to XML then the format is different and we should be ready to move forward.
+                        #However, $fileContents is not overwritten if the XML conversion fails.
+                        $fileContents = $null
+                    }
 
                     if ($fileContents.receipt.status -eq "working") {
                         Write-Host '.' -NoNewline
