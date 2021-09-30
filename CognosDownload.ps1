@@ -127,12 +127,16 @@ Param(
     [parameter(Mandatory=$false)] #If you Trim CSV White Space do you want to wrap everything in quotes?
         [switch]$CSVUseQuotes,
     [parameter(Mandatory=$false)] #If you want to override the default saved filename. You need to include the file extension.
-        [string]$FileName
+        [string]$FileName,
+    [parameter(Mandatory=$false)] #How long in minutes are you willing to let CognosDownloader run for said report? 5 mins is default and gives us a way to error control.
+        [int]$Timeout = 5
 )
 
 $version = [version]"21.09.24"
 
 Add-Type -AssemblyName System.Web
+
+$startTime = Get-Date
 
 #As of 9/24/2021 this should now be invalid.
 #https://stackoverflow.com/questions/47952689/powershell-invoke-webrequest-and-character-encoding
@@ -528,6 +532,14 @@ if (-Not($SkipDownloadingFile)) {
                 #The Cognos Server has started randomly timing out, 502 bad gateway, or TLS errors. We need to allow at least 3 errors becuase its not consistent.
                 $errorResponse = 0
                 do {
+
+                    if (Get-Date -gt $startTime.AddMinutes($Timeout)) {
+                        Write-Host "Error: Timeout of $Timeout met. Exiting." -ForegroundColor Red
+                        Send-Email("[Failure][Download Timeout]","Failed to download file in alloted time of $Timeout. $($_)")
+                        Reset-DownloadedFile($fullfilepath)
+                        exit(50)
+                    }
+
                     try {
                         Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=AUTO" -WebSession $session -OutFile "$reportIDHashFilePath" -ErrorAction STOP
                         $errorResponse = 0 #reset error response counter. We want three in a row, not three total.
