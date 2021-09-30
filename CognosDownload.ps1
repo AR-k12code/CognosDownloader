@@ -533,7 +533,7 @@ if (-Not($SkipDownloadingFile)) {
                 $errorResponse = 0
                 do {
 
-                    if (Get-Date -gt $startTime.AddMinutes($Timeout)) {
+                    if ((Get-Date) -gt $startTime.AddMinutes($Timeout)) {
                         Write-Host "Error: Timeout of $Timeout met. Exiting." -ForegroundColor Red
                         Send-Email("[Failure][Download Timeout]","Failed to download file in alloted time of $Timeout. $($_)")
                         Reset-DownloadedFile($fullfilepath)
