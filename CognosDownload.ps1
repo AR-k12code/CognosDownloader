@@ -132,19 +132,11 @@ Param(
         [int]$Timeout = 5
 )
 
-$version = [version]"21.09.24"
+$version = [version]"21.09.30"
 
 Add-Type -AssemblyName System.Web
 
 $startTime = Get-Date
-
-#As of 9/24/2021 this should now be invalid.
-#https://stackoverflow.com/questions/47952689/powershell-invoke-webrequest-and-character-encoding
-function convertFrom-MisinterpretedUtf8([string] $String) {
-    [System.Text.Encoding]::UTF8.GetString(
-        [System.Text.Encoding]::GetEncoding(28591).GetBytes($String)
-    )
-}
 
 #powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -espdns schoolsms -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" 
 
