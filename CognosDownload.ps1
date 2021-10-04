@@ -127,20 +127,18 @@ Param(
     [parameter(Mandatory=$false)] #If you Trim CSV White Space do you want to wrap everything in quotes?
         [switch]$CSVUseQuotes,
     [parameter(Mandatory=$false)] #If you want to override the default saved filename. You need to include the file extension.
-        [string]$FileName
+        [string]$FileName,
+    [parameter(Mandatory=$false)] #How long in minutes are you willing to let CognosDownloader run for said report? 5 mins is default and gives us a way to error control.
+        [int]$Timeout = 5,
+    [parameter(Mandatory=$false)] #If you need to download the same report multiple times but with different parameters we have to use a random temp file so they don't conflict.
+        [switch]$RandomTempFile
 )
 
-$version = [version]"21.09.24"
+$version = [version]"21.09.30"
 
 Add-Type -AssemblyName System.Web
 
-#As of 9/24/2021 this should now be invalid.
-#https://stackoverflow.com/questions/47952689/powershell-invoke-webrequest-and-character-encoding
-function convertFrom-MisinterpretedUtf8([string] $String) {
-    [System.Text.Encoding]::UTF8.GetString(
-        [System.Text.Encoding]::GetEncoding(28591).GetBytes($String)
-    )
-}
+$startTime = Get-Date
 
 #powershell.exe -executionpolicy bypass -file C:\Scripts\CognosDownload.ps1 -username 0000username -espdns schoolsms -report MyReportName -cognosfolder "subfolder" -savepath "c:\scripts\downloads" 
 
@@ -453,9 +451,14 @@ if (-Not($SkipDownloadingFile)) {
             #to the disk. I have tried keeping this in memory but the way Invoke-WebRequest and Invoke-RestMethod move it from memory often leads to incorrect encoding. 
 
             #We need a filename to save to that won't conflict with the reportID.xml we already use for saved parameters. Lets hash the reportID for a predictable yet nonconflicting name.
-            $reportIDHash = Get-FileHash -InputStream ([System.IO.MemoryStream]::New([System.Text.Encoding]::ASCII.GetBytes($reportID)))
+            #With the new espDatabase project use the same report for any table. So the hash needs to be randomized.
+            if ($RandomTempFile) {
+                $reportIDHash = (New-Guid).Guid.ToString()
+            } else {   
+                $reportIDHash = (Get-FileHash -InputStream ([System.IO.MemoryStream]::New([System.Text.Encoding]::ASCII.GetBytes($reportID)))).Hash
+            }
             #We want to make sure we always keep data together so we don't leave confidential information somewhere else on the system. DO NOT USE TEMP!
-            $reportIDHashFilePath = "$(Split-Path $fullfilepath)\$($reportIDHash.Hash)"
+            $reportIDHashFilePath = "$(Split-Path $fullfilepath)\$($reportIDHash)"
 
             #Attempt first download.
             Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=MANUAL" -WebSession $session -OutFile "$reportIDHashFilePath" -ErrorAction STOP
@@ -528,6 +531,14 @@ if (-Not($SkipDownloadingFile)) {
                 #The Cognos Server has started randomly timing out, 502 bad gateway, or TLS errors. We need to allow at least 3 errors becuase its not consistent.
                 $errorResponse = 0
                 do {
+
+                    if ((Get-Date) -gt $startTime.AddMinutes($Timeout)) {
+                        Write-Host "Error: Timeout of $Timeout met. Exiting." -ForegroundColor Red
+                        Send-Email("[Failure][Download Timeout]","Failed to download file in alloted time of $Timeout. $($_)")
+                        Reset-DownloadedFile($fullfilepath)
+                        exit(50)
+                    }
+
                     try {
                         Invoke-WebRequest -Uri "$($baseURL)/ibmcognos/bi/v1/disp/rds/sessionOutput/conversationID/$($response4.receipt.conversationID)?v=3&async=AUTO" -WebSession $session -OutFile "$reportIDHashFilePath" -ErrorAction STOP
                         $errorResponse = 0 #reset error response counter. We want three in a row, not three total.
