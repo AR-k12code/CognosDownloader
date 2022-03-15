@@ -63,6 +63,25 @@ Get-Help .\CognosDownload.ps1 -Examples
 .\ResetPassword.ps1
 ````
 
+## Exit Codes
+````
+1 = Save Path does not exist
+2 = Unable to Authenticate
+3 = Unable to find report with the supplied path
+4 = Unable to retrieve output formats from the Cognos RDS
+5 = Report has required Prompts you must answer
+6 = Failed to download file
+7 = Could not find file after it downloaded
+8 = Failed CSV header count. This can be because of a formatting issue returned from Cognos.
+9 = Failed CSV line count. Not enough data returned or blank.
+10 = General verification error. Could not convert to a format to verify.
+12 = Failed to download file from Cognos server after attempting 3 times.
+30 = Failed to send email on download error.
+50 = Timeout. The report did not finish processing on the Cognos server within the timeout period. Default 5 minutes.
+````
+
+You can check the $LASTEXITCODE variable to ensure your download finished correctly.
+
 ## eFinance Username
 > It is possible that your eFinance username is not the same as your SSO username. If your account came from the old APSCN GUI days you'll need to specify both -username and -efpuser separately. For example my username for eFinance is not the same as my SSO username. We did not have the LEA at the front to begin with. The $efpuser can also be specified in the CognosDefaults.ps1.
 ````

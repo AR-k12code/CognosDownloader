@@ -134,7 +134,7 @@ Param(
         [switch]$RandomTempFile
 )
 
-$version = [version]"21.09.30"
+$version = [version]"22.3.15"
 
 Add-Type -AssemblyName System.Web
 
@@ -561,6 +561,7 @@ if (-Not($SkipDownloadingFile)) {
                         #If we can't convert it to XML then the format is different and we should be ready to move forward.
                         #However, $fileContents is not overwritten if the XML conversion fails.
                         $fileContents = $null
+                        $Error.Clear()
                     }
 
                     if ($fileContents.receipt.status -eq "working") {

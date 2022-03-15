@@ -1,7 +1,11 @@
 {
-  "version": "21.09.30",
-  "description": "Added Timeout Parameter so if Cognos hangs the scripts won't hang indefinitely. Default is 5 minutes.",
+  "version": "22.3.15",
+  "description": "Fix for $Error variable return on checking for ticket or not. Thanks to Brian Lowrance.",
   "versions": [
+    {
+      "version": "21.09.30",
+      "description": "Added Timeout Parameter so if Cognos hangs the scripts won't hang indefinitely. Default is 5 minutes."
+    },
     {
       "version": "21.09.24",
       "description": "XLSX, XML, and PDF outputs are now supported. CSV, XLSX, and XML are verfied against -requiredlinecount paramater. This now saves the Cognos response directly to disk to avoid encoding issues."
