@@ -1,0 +1,9 @@
+report,cognosfolder,savepath,reportparams,ShowReportDetails
+eTritionStudents,,C:\scripts\eTrition,,
+enrollments,Clever,C:\scripts\Clever,,
+sections,Clever,C:\scripts\Clever,,
+students,Clever,C:\scripts\Clever,,
+Courses,RTI,C:\scripts\rtiScheduler\HighSchool,p_year=2022&p_building=13,
+Schedule,RTI,C:\scripts\rtiScheduler\HighSchool,p_year=2022&p_building=13,
+Courses,RTI,C:\scripts\rtiScheduler\MiddleSchool,p_year=2022&p_building=702,
+Schedule,RTI,C:\scripts\rtiScheduler\MiddleSchool,p_year=2022&p_building=702,X
